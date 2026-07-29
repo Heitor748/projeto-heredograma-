@@ -107,6 +107,35 @@ const Heredograma = {
       });
     }
     pessoas.forEach(p => { if (geracao[p.id] === undefined) geracao[p.id] = 0; });
+
+    // Normalizar: cônjuges devem estar na mesma geração
+    let normalizar = true;
+    while (normalizar) {
+      normalizar = false;
+      pessoas.forEach(p => {
+        (p.conjuges || []).forEach(cid => {
+          if (geracao[cid] !== undefined && geracao[p.id] !== undefined) {
+            const maxG = Math.max(geracao[p.id], geracao[cid]);
+            if (geracao[p.id] < maxG) { geracao[p.id] = maxG; normalizar = true; }
+            if (geracao[cid] < maxG) { geracao[cid] = maxG; normalizar = true; }
+          }
+        });
+      });
+    }
+    // Garantir que filhos sejam sempre geração > geração dos pais
+    normalizar = true;
+    while (normalizar) {
+      normalizar = false;
+      pessoas.forEach(p => {
+        const gPai = p.pai && geracao[p.pai] !== undefined ? geracao[p.pai] : -1;
+        const gMae = p.mae && geracao[p.mae] !== undefined ? geracao[p.mae] : -1;
+        const minEsp = Math.max(gPai, gMae) + 1;
+        if ((gPai >= 0 || gMae >= 0) && geracao[p.id] < minEsp) {
+          geracao[p.id] = minEsp; normalizar = true;
+        }
+      });
+    }
+
     this._geracao = geracao;
 
     const maxG = Math.max(...Object.values(geracao));

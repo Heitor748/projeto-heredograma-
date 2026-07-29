@@ -120,6 +120,19 @@ const Cadastro = {
               Storage.update(maeObj);
             }
           }
+        } else if (tipo === 'irmao' && ref) {
+          if (!salva.pai && ref.pai) { salva.pai = ref.pai; Storage.update(salva); }
+          if (!salva.mae && ref.mae) { salva.mae = ref.mae; Storage.update(salva); }
+          if (salva.pai) {
+            const pai = Storage.getById(salva.pai);
+            if (pai && !(pai.filhos || []).includes(salva.id))
+              Storage.update({ ...pai, filhos: [...(pai.filhos || []), salva.id] });
+          }
+          if (salva.mae) {
+            const mae = Storage.getById(salva.mae);
+            if (mae && !(mae.filhos || []).includes(salva.id))
+              Storage.update({ ...mae, filhos: [...(mae.filhos || []), salva.id] });
+          }
         }
         this._relacaoPendente = null;
       }
@@ -166,8 +179,7 @@ const Cadastro = {
 
     // Mostrar/ocultar campo de data de falecimento
     const grupoFalecimento = document.getElementById('grupo-data-falecimento');
-    if (grupoFalecimento) grupoFalecimento.classList.toggle('hidden', !pessoa.vivo === false);
-    if (pessoa.vivo === false && grupoFalecimento) grupoFalecimento.classList.remove('hidden');
+    if (grupoFalecimento) grupoFalecimento.style.display = pessoa.vivo === false ? 'flex' : 'none';
 
     // Multi-selects
     ['filhos-select', 'conjuges-select'].forEach(selId => {

@@ -114,7 +114,7 @@ const UI = {
                 <span class="ri-nome">${p.nome} ${p.sobrenome || ''}</span>
                 <small>${p.sexo === 'M' ? '♂' : p.sexo === 'F' ? '♀' : '◇'}
                   ${p.dataNascimento ? ' · ' + new Date(p.dataNascimento).getFullYear() : ''}
-                  ${!p.vivo ? ' · Falecido' : ' · Vivo'}
+                  ${p.vivo === false ? ' · Falecido' : ' · Vivo'}
                   ${p.afetado ? ' · <strong style="color:var(--perigo)">Afetado</strong>' : ''}
                 </small>
               </div>
@@ -126,7 +126,7 @@ const UI = {
   bindModal() {
     const modal = document.getElementById('modal-perfil');
     modal?.addEventListener('click', e => { if (e.target === modal) this.fecharModal(); });
-    document.getElementById('modal-fechar')?.addEventListener('click', () => this.fecharModal());
+    document.querySelector('.modal-fechar')?.addEventListener('click', () => this.fecharModal());
   },
 
   atualizarDashboard() {
@@ -137,7 +137,7 @@ const UI = {
     set('dash-mulheres', pessoas.filter(p => p.sexo === 'F').length);
     set('dash-afetados', pessoas.filter(p => p.afetado).length);
     set('dash-portadores', pessoas.filter(p => p.portador).length);
-    set('dash-falecidos', pessoas.filter(p => !p.vivo).length);
+    set('dash-falecidos', pessoas.filter(p => p.vivo === false).length);
 
     const listaEl = document.getElementById('dash-recentes');
     if (listaEl) {
