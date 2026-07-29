@@ -468,6 +468,19 @@ const UI = {
         if (!atualizado.pai && ref.pai) atualizado.pai = ref.pai;
         if (!atualizado.mae && ref.mae) atualizado.mae = ref.mae;
         Storage.update(atualizado);
+        // Atualizar filhos nos pais
+        if (atualizado.pai) {
+          const pai = Storage.getById(atualizado.pai);
+          if (pai && !(pai.filhos || []).includes(idSelecionado)) {
+            Storage.update({ ...pai, filhos: [...(pai.filhos || []), idSelecionado] });
+          }
+        }
+        if (atualizado.mae) {
+          const mae = Storage.getById(atualizado.mae);
+          if (mae && !(mae.filhos || []).includes(idSelecionado)) {
+            Storage.update({ ...mae, filhos: [...(mae.filhos || []), idSelecionado] });
+          }
+        }
         this.toast('Irmão(ã) vinculado!', 'sucesso');
       }
     }

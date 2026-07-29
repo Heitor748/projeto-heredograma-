@@ -71,9 +71,6 @@ const Storage = {
           if (!p.pai) p.pai = idPaiOuMae;
           else if (!p.mae) p.mae = idPaiOuMae;
         }
-        if (!(p.filhos || []).includes(idFilho)) {
-          // garante que o filho não lista a si mesmo
-        }
       }
     });
     this.save(lista);
