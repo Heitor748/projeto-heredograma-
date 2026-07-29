@@ -147,7 +147,7 @@ ${descricao}`;
     try {
       const resposta = await this.chamarAPI([
         { role: 'user', content: prompt }
-      ], 'llama3-70b-8192');
+      ], 'llama-3.3-70b-versatile');
 
       indicador.remove();
 
@@ -219,7 +219,7 @@ ${descricao}`;
     }
   },
 
-  async chamarAPI(mensagens, modelo = 'llama3-8b-8192') {
+  async chamarAPI(mensagens, modelo = 'llama-3.1-8b-instant') {
     const resposta = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
