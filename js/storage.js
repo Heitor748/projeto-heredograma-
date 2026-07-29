@@ -32,7 +32,6 @@ const Storage = {
   },
 
   delete(id) {
-    // Remove a pessoa e limpa referências a ela
     let lista = this.getAll().filter(p => p.id !== id);
     lista = lista.map(p => ({
       ...p,
@@ -41,6 +40,42 @@ const Storage = {
       conjuges: (p.conjuges || []).filter(c => c !== id),
       filhos: (p.filhos || []).filter(f => f !== id),
     }));
+    this.save(lista);
+  },
+
+  // Vincula cônjuge bidirecionalmente
+  vincularConjuge(idA, idB) {
+    const lista = this.getAll();
+    lista.forEach(p => {
+      if (p.id === idA && !(p.conjuges || []).includes(idB)) {
+        p.conjuges = [...(p.conjuges || []), idB];
+      }
+      if (p.id === idB && !(p.conjuges || []).includes(idA)) {
+        p.conjuges = [...(p.conjuges || []), idA];
+      }
+    });
+    this.save(lista);
+  },
+
+  // Vincula filho bidirecionalmente (filho recebe pai/mãe, pai/mãe recebe filho)
+  vincularFilho(idPaiOuMae, idFilho, sexoPaiMae) {
+    const lista = this.getAll();
+    lista.forEach(p => {
+      if (p.id === idPaiOuMae && !(p.filhos || []).includes(idFilho)) {
+        p.filhos = [...(p.filhos || []), idFilho];
+      }
+      if (p.id === idFilho) {
+        if (sexoPaiMae === 'M' && !p.pai) p.pai = idPaiOuMae;
+        else if (sexoPaiMae === 'F' && !p.mae) p.mae = idPaiOuMae;
+        else if (!sexoPaiMae) {
+          if (!p.pai) p.pai = idPaiOuMae;
+          else if (!p.mae) p.mae = idPaiOuMae;
+        }
+        if (!(p.filhos || []).includes(idFilho)) {
+          // garante que o filho não lista a si mesmo
+        }
+      }
+    });
     this.save(lista);
   },
 

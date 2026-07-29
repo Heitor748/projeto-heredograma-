@@ -5,6 +5,7 @@ const Cadastro = {
     this.bindEventos();
     this.atualizarSelects();
     this.renderizarLista();
+    this.bindSexoBtns();
   },
 
   bindEventos() {
@@ -12,26 +13,45 @@ const Cadastro = {
       e.preventDefault();
       this.salvar();
     });
-
     document.getElementById('btn-limpar').addEventListener('click', () => this.limpar());
-
     document.getElementById('btn-excluir').addEventListener('click', () => {
       if (this.pessoaEditando) this.excluir(this.pessoaEditando.id);
     });
-
     document.getElementById('foto-input').addEventListener('change', e => {
       this.carregarFoto(e.target.files[0]);
     });
-
+    document.getElementById('foto-area-click')?.addEventListener('click', () => {
+      document.getElementById('foto-input').click();
+    });
     document.getElementById('pesquisa-cadastro').addEventListener('input', e => {
       this.renderizarLista(e.target.value);
     });
-
-    // Atualiza selects ao clicar neles para garantir dados frescos
     ['pai-select', 'mae-select', 'conjuges-select', 'filhos-select'].forEach(id => {
       document.getElementById(id)?.addEventListener('focus', () => {
-        const idEditando = this.pessoaEditando?.id || null;
-        this.atualizarSelects(idEditando);
+        this.atualizarSelects(this.pessoaEditando?.id || null);
+      });
+    });
+
+    // Mostrar/ocultar data de falecimento
+    document.getElementById('falecido')?.addEventListener('change', e => {
+      const grupo = document.getElementById('grupo-data-falecimento');
+      if (grupo) grupo.style.display = e.target.checked ? 'flex' : 'none';
+    });
+  },
+
+  bindSexoBtns() {
+    document.querySelectorAll('.sexo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sexo-btn').forEach(b => b.classList.remove('ativo'));
+        btn.classList.add('ativo');
+        document.getElementById('sexo-hidden').value = btn.dataset.valor;
+        // Atualizar cor do avatar
+        const preview = document.getElementById('foto-area-click');
+        if (preview) {
+          preview.className = preview.className.replace(/\b(masc|fem|indef)\b/g, '');
+          const cor = btn.dataset.valor === 'M' ? 'masc' : btn.dataset.valor === 'F' ? 'fem' : 'indef';
+          preview.classList.add(cor);
+        }
       });
     });
   },
@@ -44,14 +64,14 @@ const Cadastro = {
     const conjugesSelecionados = Array.from(
       document.getElementById('conjuges-select')?.selectedOptions || []
     ).map(o => o.value);
-
     return {
       id: this.pessoaEditando?.id || null,
       nome: get('nome'),
       sobrenome: get('sobrenome'),
-      sexo: get('sexo'),
-      dataNascimento: get('data-nascimento'),
-      vivo: document.getElementById('vivo')?.checked ?? true,
+      sexo: get('sexo-hidden'),
+      dataNascimento: get('data-nascimento') || null,
+      dataFalecimento: get('data-falecimento') || null,
+      vivo: !document.getElementById('falecido')?.checked,
       afetado: document.getElementById('afetado')?.checked ?? false,
       portador: document.getElementById('portador')?.checked ?? false,
       pai: get('pai-select') || null,
@@ -61,25 +81,50 @@ const Cadastro = {
       observacoes: get('observacoes'),
       foto: document.getElementById('foto-preview')?.src?.startsWith('data:')
         ? document.getElementById('foto-preview').src
-        : null,
+        : (this.pessoaEditando?.foto || null),
     };
   },
 
   salvar() {
     const pessoa = this.getPessoaDoForm();
-    if (!pessoa.nome) {
-      UI.toast('Nome é obrigatório', 'erro');
-      return;
-    }
+    if (!pessoa.nome) { UI.toast('Nome é obrigatório', 'erro'); return; }
 
     if (this.pessoaEditando) {
       Storage.update(pessoa);
-      UI.toast('Pessoa atualizada com sucesso!', 'sucesso');
+      UI.toast('Pessoa atualizada!', 'sucesso');
     } else {
-      Storage.add(pessoa);
-      UI.toast('Pessoa cadastrada com sucesso!', 'sucesso');
+      const salva = Storage.add(pessoa);
+      // Aplicar relação pendente (cônjuge, filho, irmão)
+      if (this._relacaoPendente) {
+        const { tipo, idReferencia } = this._relacaoPendente;
+        const ref = Storage.getById(idReferencia);
+        if (tipo === 'conjuge') {
+          Storage.vincularConjuge(salva.id, idReferencia);
+        } else if (tipo === 'filho') {
+          // Já foi configurado no pai/mae do form, garantir bidirecional
+          const paiSelecionado = pessoa.pai;
+          const maeSelecionada = pessoa.mae;
+          if (paiSelecionado) {
+            const lista = Storage.getAll();
+            const paiObj = lista.find(p => p.id === paiSelecionado);
+            if (paiObj && !(paiObj.filhos || []).includes(salva.id)) {
+              paiObj.filhos = [...(paiObj.filhos || []), salva.id];
+              Storage.update(paiObj);
+            }
+          }
+          if (maeSelecionada) {
+            const lista = Storage.getAll();
+            const maeObj = lista.find(p => p.id === maeSelecionada);
+            if (maeObj && !(maeObj.filhos || []).includes(salva.id)) {
+              maeObj.filhos = [...(maeObj.filhos || []), salva.id];
+              Storage.update(maeObj);
+            }
+          }
+        }
+        this._relacaoPendente = null;
+      }
+      UI.toast('Pessoa cadastrada!', 'sucesso');
     }
-
     this.limpar();
     this.atualizarSelects();
     this.renderizarLista();
@@ -89,47 +134,88 @@ const Cadastro = {
   editar(id) {
     const pessoa = Storage.getById(id);
     if (!pessoa) return;
-
     this.pessoaEditando = pessoa;
     this.atualizarSelects(id);
 
     const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
     set('nome', pessoa.nome);
     set('sobrenome', pessoa.sobrenome);
-    set('sexo', pessoa.sexo);
     set('data-nascimento', pessoa.dataNascimento);
+    set('data-falecimento', pessoa.dataFalecimento);
+    set('sexo-hidden', pessoa.sexo);
     set('pai-select', pessoa.pai);
     set('mae-select', pessoa.mae);
     set('observacoes', pessoa.observacoes);
 
-    document.getElementById('vivo').checked = pessoa.vivo !== false;
-    document.getElementById('afetado').checked = !!pessoa.afetado;
-    document.getElementById('portador').checked = !!pessoa.portador;
+    // Botões de sexo
+    document.querySelectorAll('.sexo-btn').forEach(b => b.classList.remove('ativo'));
+    const btnSexo = document.querySelector(`.sexo-btn[data-valor="${pessoa.sexo || ''}"]`);
+    if (btnSexo) btnSexo.classList.add('ativo');
 
-    // Selecionar múltiplos (filhos e cônjuges)
+    // Atualizar cor da área de foto
+    const fotoArea = document.getElementById('foto-area-click');
+    if (fotoArea) {
+      fotoArea.className = fotoArea.className.replace(/\b(masc|fem|indef)\b/g, '').trim();
+      fotoArea.classList.add(pessoa.sexo === 'M' ? 'masc' : pessoa.sexo === 'F' ? 'fem' : 'indef');
+    }
+
+    // Checkboxes
+    if (document.getElementById('falecido')) document.getElementById('falecido').checked = pessoa.vivo === false;
+    if (document.getElementById('afetado')) document.getElementById('afetado').checked = !!pessoa.afetado;
+    if (document.getElementById('portador')) document.getElementById('portador').checked = !!pessoa.portador;
+
+    // Mostrar/ocultar campo de data de falecimento
+    const grupoFalecimento = document.getElementById('grupo-data-falecimento');
+    if (grupoFalecimento) grupoFalecimento.classList.toggle('hidden', !pessoa.vivo === false);
+    if (pessoa.vivo === false && grupoFalecimento) grupoFalecimento.classList.remove('hidden');
+
+    // Multi-selects
     ['filhos-select', 'conjuges-select'].forEach(selId => {
       const campo = selId === 'filhos-select' ? pessoa.filhos : pessoa.conjuges;
       const sel = document.getElementById(selId);
       if (sel) Array.from(sel.options).forEach(o => { o.selected = (campo || []).includes(o.value); });
     });
 
-    if (pessoa.foto) {
-      document.getElementById('foto-preview').src = pessoa.foto;
-      document.getElementById('foto-preview').classList.remove('hidden');
+    // Foto
+    const preview = document.getElementById('foto-preview');
+    if (pessoa.foto && preview) {
+      preview.src = pessoa.foto;
+      preview.classList.remove('hidden');
+      document.getElementById('foto-placeholder')?.classList.add('hidden');
     }
 
     document.getElementById('btn-excluir').classList.remove('hidden');
     document.getElementById('btn-salvar').textContent = 'Atualizar';
     document.getElementById('form-titulo').textContent = 'Editar Pessoa';
-
     UI.navegarPara('cadastro');
     document.getElementById('nome').focus();
+  },
+
+  // Abre form pré-configurado e salva relação bidirecional ao salvar
+  novoComRelacao(tipo, idReferencia) {
+    this.limpar();
+    this._relacaoPendente = { tipo, idReferencia };
+    UI.navegarPara('cadastro');
+    const pessoa = Storage.getById(idReferencia);
+    if (!pessoa) return;
+    this.atualizarSelects(null);
+
+    if (tipo === 'filho') {
+      if (pessoa.sexo === 'M') { const el = document.getElementById('pai-select'); if (el) el.value = idReferencia; }
+      else if (pessoa.sexo === 'F') { const el = document.getElementById('mae-select'); if (el) el.value = idReferencia; }
+    } else if (tipo === 'irmao') {
+      const pai = document.getElementById('pai-select');
+      const mae = document.getElementById('mae-select');
+      if (pai && pessoa.pai) pai.value = pessoa.pai;
+      if (mae && pessoa.mae) mae.value = pessoa.mae;
+    }
+    // cônjuge: não pré-preenche campos, aplica depois do salvar
   },
 
   excluir(id) {
     const pessoa = Storage.getById(id);
     if (!pessoa) return;
-    if (!confirm(`Excluir "${pessoa.nome} ${pessoa.sobrenome}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir "${pessoa.nome} ${pessoa.sobrenome || ''}"? Esta ação não pode ser desfeita.`)) return;
     Storage.delete(id);
     this.limpar();
     this.atualizarSelects();
@@ -141,9 +227,20 @@ const Cadastro = {
   limpar() {
     this.pessoaEditando = null;
     document.getElementById('form-pessoa').reset();
+    document.getElementById('sexo-hidden').value = '';
+    document.querySelectorAll('.sexo-btn').forEach(b => b.classList.remove('ativo'));
+
     const preview = document.getElementById('foto-preview');
-    preview.src = '';
-    preview.classList.add('hidden');
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    document.getElementById('foto-placeholder')?.classList.remove('hidden');
+
+    const fotoArea = document.getElementById('foto-area-click');
+    if (fotoArea) {
+      fotoArea.className = fotoArea.className.replace(/\b(masc|fem|indef)\b/g, '').trim();
+      fotoArea.classList.add('indef');
+    }
+
+    document.getElementById('grupo-data-falecimento')?.classList.add('hidden');
     document.getElementById('btn-excluir').classList.add('hidden');
     document.getElementById('btn-salvar').textContent = 'Salvar';
     document.getElementById('form-titulo').textContent = 'Nova Pessoa';
@@ -154,37 +251,33 @@ const Cadastro = {
     const reader = new FileReader();
     reader.onload = e => {
       const preview = document.getElementById('foto-preview');
-      preview.src = e.target.result;
-      preview.classList.remove('hidden');
+      if (preview) { preview.src = e.target.result; preview.classList.remove('hidden'); }
+      document.getElementById('foto-placeholder')?.classList.add('hidden');
     };
     reader.readAsDataURL(file);
   },
 
   atualizarSelects(excluirId = null) {
     const pessoas = Storage.getAll().filter(p => p.id !== excluirId);
-    const opcoes = pessoas
-      .map(p => `<option value="${p.id}">${p.nome} ${p.sobrenome || ''}</option>`)
-      .join('');
+    const opcoes = pessoas.map(p =>
+      `<option value="${p.id}">${p.nome} ${p.sobrenome || ''}</option>`
+    ).join('');
     const vazio = '<option value="">-- Nenhum --</option>';
     const semPessoas = '<option value="" disabled>Cadastre outras pessoas primeiro</option>';
 
     ['pai-select', 'mae-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (!el) return;
-      el.innerHTML = pessoas.length ? vazio + opcoes : vazio + semPessoas;
+      if (el) el.innerHTML = pessoas.length ? vazio + opcoes : vazio + semPessoas;
     });
-
     ['filhos-select', 'conjuges-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (!el) return;
-      el.innerHTML = pessoas.length ? opcoes : semPessoas;
+      if (el) el.innerHTML = pessoas.length ? opcoes : semPessoas;
     });
   },
 
   renderizarLista(filtro = '') {
     const lista = document.getElementById('lista-pessoas');
     if (!lista) return;
-
     let pessoas = Storage.getAll();
     if (filtro) {
       const f = filtro.toLowerCase();
@@ -192,36 +285,32 @@ const Cadastro = {
         p.nome?.toLowerCase().includes(f) || p.sobrenome?.toLowerCase().includes(f)
       );
     }
-
     if (!pessoas.length) {
       lista.innerHTML = '<p class="lista-vazia">Nenhuma pessoa cadastrada.</p>';
       return;
     }
-
-    lista.innerHTML = pessoas.map(p => `
-      <div class="card-pessoa" data-id="${p.id}">
-        <div class="card-avatar">
-          ${p.foto
-            ? `<img src="${p.foto}" alt="${p.nome}">`
-            : `<span class="avatar-letra">${(p.nome || '?')[0].toUpperCase()}</span>`
-          }
+    lista.innerHTML = pessoas.map(p => {
+      const corAvatar = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
+      const anoNasc = p.dataNascimento ? new Date(p.dataNascimento).getFullYear() : null;
+      return `
+      <div class="card-pessoa2" onclick="UI.verPerfil('${p.id}')">
+        <div class="cp2-avatar ${corAvatar}">
+          ${p.foto ? `<img src="${p.foto}" alt="${p.nome}">` : `<span>${(p.nome || '?')[0].toUpperCase()}</span>`}
         </div>
-        <div class="card-info">
+        <div class="cp2-info">
           <strong>${p.nome} ${p.sobrenome || ''}</strong>
-          <small>${p.sexo === 'M' ? '♂ Masculino' : p.sexo === 'F' ? '♀ Feminino' : '◇ Indefinido'}
-            ${p.dataNascimento ? ' · ' + this.formatarIdade(p.dataNascimento, p.vivo) : ''}
-            ${p.afetado ? ' · <span class="tag tag-afetado">Afetado</span>' : ''}
-            ${p.portador ? ' · <span class="tag tag-portador">Portador</span>' : ''}
-            ${!p.vivo ? ' · <span class="tag tag-falecido">Falecido</span>' : ''}
+          <small>
+            ${anoNasc ? anoNasc + ' – ' : ''}${p.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}
+            ${p.afetado ? ' · <span style="color:var(--perigo)">Afetado</span>' : ''}
+            ${p.portador ? ' · <span style="color:var(--aviso)">Portador</span>' : ''}
           </small>
         </div>
-        <div class="card-acoes">
+        <div class="cp2-acoes" onclick="event.stopPropagation()">
           <button onclick="Cadastro.editar('${p.id}')" title="Editar">✏️</button>
-          <button onclick="UI.verPerfil('${p.id}')" title="Ver perfil">👤</button>
           <button onclick="Cadastro.excluir('${p.id}')" title="Excluir">🗑️</button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   },
 
   formatarIdade(dataNasc, vivo) {

@@ -180,108 +180,117 @@
     <section id="secao-cadastro" class="secao hidden">
       <div class="page-header">
         <h2>Cadastro de Pessoas</h2>
-        <p>Adicione e gerencie os membros da família</p>
+        <p>Clique em uma pessoa para ver o perfil e gerenciar relacionamentos</p>
       </div>
 
       <div class="cadastro-layout">
 
-        <!-- Formulário -->
+        <!-- Formulário redesenhado -->
         <div class="form-container">
-          <h3 id="form-titulo">Nova Pessoa</h3>
-          <form id="form-pessoa">
+          <div class="form-header">
+            <h3 id="form-titulo">Nova Pessoa</h3>
+            <button type="button" id="btn-excluir" class="btn btn-perigo btn-sm hidden">🗑️ Excluir</button>
+          </div>
 
+          <!-- Foto centralizada com avatar colorido -->
+          <div class="foto-central">
+            <div id="foto-area-click" class="foto-avatar-grande indef" title="Clique para adicionar foto">
+              <img id="foto-preview" class="hidden" alt="Foto">
+              <span id="foto-placeholder">📷</span>
+            </div>
+            <input type="file" id="foto-input" accept="image/*" class="hidden">
+            <small>Clique na foto para alterar</small>
+          </div>
+
+          <form id="form-pessoa">
+            <input type="hidden" id="sexo-hidden" name="sexo" value="">
+
+            <!-- Nome -->
             <div class="form-row">
               <div class="form-group">
                 <label for="nome">Nome *</label>
-                <input type="text" id="nome" placeholder="Nome" required>
+                <input type="text" id="nome" placeholder="Nome" required autocomplete="given-name">
               </div>
               <div class="form-group">
                 <label for="sobrenome">Sobrenome</label>
-                <input type="text" id="sobrenome" placeholder="Sobrenome">
+                <input type="text" id="sobrenome" placeholder="Sobrenome" autocomplete="family-name">
               </div>
             </div>
 
+            <!-- Sexo botões -->
+            <div class="form-group">
+              <label>Sexo</label>
+              <div class="sexo-btns">
+                <button type="button" class="sexo-btn" data-valor="M">♂ Masculino</button>
+                <button type="button" class="sexo-btn" data-valor="F">♀ Feminino</button>
+                <button type="button" class="sexo-btn ativo" data-valor="">◇ Indefinido</button>
+              </div>
+            </div>
+
+            <!-- Datas -->
             <div class="form-row">
               <div class="form-group">
-                <label for="sexo">Sexo</label>
-                <select id="sexo">
-                  <option value="">Indefinido</option>
-                  <option value="M">♂ Masculino</option>
-                  <option value="F">♀ Feminino</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="data-nascimento">Data de Nascimento</label>
+                <label for="data-nascimento">Nascimento</label>
                 <input type="date" id="data-nascimento">
               </div>
-            </div>
-
-            <!-- Foto -->
-            <div class="form-group">
-              <label>Foto</label>
-              <div class="foto-area">
-                <img id="foto-preview" class="hidden" alt="Preview">
-                <label for="foto-input" class="btn btn-outline btn-sm">📷 Selecionar foto</label>
-                <input type="file" id="foto-input" accept="image/*" class="hidden">
+              <div class="form-group" id="grupo-data-falecimento" style="display:none">
+                <label for="data-falecimento">Falecimento</label>
+                <input type="date" id="data-falecimento">
               </div>
             </div>
 
-            <!-- Checkboxes -->
-            <div class="form-row form-checks">
-              <label class="check-label">
-                <input type="checkbox" id="vivo" checked>
-                <span class="check-custom"></span>
-                Vivo
+            <!-- Status toggle -->
+            <div class="status-toggles">
+              <label class="toggle-card" id="toggle-falecido-label">
+                <input type="checkbox" id="falecido">
+                <span class="toggle-icon">✝️</span>
+                <span>Falecido(a)</span>
               </label>
-              <label class="check-label check-afetado">
+              <label class="toggle-card toggle-afetado">
                 <input type="checkbox" id="afetado">
-                <span class="check-custom"></span>
-                Afetado
+                <span class="toggle-icon">🔴</span>
+                <span>Afetado(a)</span>
               </label>
-              <label class="check-label check-portador">
+              <label class="toggle-card toggle-portador">
                 <input type="checkbox" id="portador">
-                <span class="check-custom"></span>
-                Portador
+                <span class="toggle-icon">🟠</span>
+                <span>Portador(a)</span>
               </label>
             </div>
 
-            <!-- Relações -->
+            <!-- Pais -->
+            <div class="form-section-label">Filiação</div>
             <div class="form-row">
               <div class="form-group">
-                <label for="pai-select">Pai</label>
+                <label for="pai-select">♂ Pai</label>
                 <select id="pai-select">
                   <option value="">-- Nenhum --</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="mae-select">Mãe</label>
+                <label for="mae-select">♀ Mãe</label>
                 <select id="mae-select">
                   <option value="">-- Nenhum --</option>
                 </select>
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label for="conjuges-select">Cônjuge(s) <small>(Ctrl+click para múltiplos)</small></label>
-                <select id="conjuges-select" multiple size="4"></select>
-              </div>
-              <div class="form-group">
-                <label for="filhos-select">Filhos <small>(Ctrl+click para múltiplos)</small></label>
-                <select id="filhos-select" multiple size="4"></select>
-              </div>
-            </div>
+            <!-- Cônjuges e filhos ocultos (mantidos para compatibilidade) -->
+            <select id="conjuges-select" class="hidden" multiple></select>
+            <select id="filhos-select" class="hidden" multiple></select>
 
+            <!-- Observações -->
             <div class="form-group">
               <label for="observacoes">Observações</label>
-              <textarea id="observacoes" rows="3" placeholder="Condições, notas clínicas, etc."></textarea>
+              <textarea id="observacoes" rows="2" placeholder="Condições, notas clínicas, local de nascimento..."></textarea>
             </div>
 
             <div class="form-acoes">
-              <button type="submit" id="btn-salvar" class="btn btn-primario">Salvar</button>
+              <button type="submit" id="btn-salvar" class="btn btn-primario">💾 Salvar</button>
               <button type="button" id="btn-limpar" class="btn btn-outline">Limpar</button>
-              <button type="button" id="btn-excluir" class="btn btn-perigo hidden">Excluir</button>
             </div>
+
+            <p class="form-dica">💡 Cônjuges e filhos são adicionados pelo <strong>perfil da pessoa</strong> (clique no card ao lado)</p>
           </form>
         </div>
 
@@ -290,6 +299,9 @@
           <div class="lista-header">
             <h3>Pessoas Cadastradas</h3>
             <input type="text" id="pesquisa-cadastro" placeholder="🔍 Buscar...">
+          </div>
+          <div class="lista-nova">
+            <button class="btn-nova-pessoa" onclick="Cadastro.limpar()">+ Nova Pessoa</button>
           </div>
           <div id="lista-pessoas">
             <p class="lista-vazia">Nenhuma pessoa cadastrada.</p>
