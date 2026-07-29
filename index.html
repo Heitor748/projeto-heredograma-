@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heredograma — Árvore Genealógica</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icone">🧬</span>
+      <span class="logo-texto">Heredograma</span>
+    </div>
+    <nav class="sidebar-nav">
+      <button data-secao="dashboard" class="nav-btn ativo">
+        <span class="nav-icone">📊</span>
+        <span>Dashboard</span>
+      </button>
+      <button data-secao="cadastro" class="nav-btn">
+        <span class="nav-icone">👤</span>
+        <span>Cadastro</span>
+      </button>
+      <button data-secao="arvore" class="nav-btn">
+        <span class="nav-icone">🌳</span>
+        <span>Árvore Genealógica</span>
+      </button>
+      <button data-secao="heredograma" class="nav-btn">
+        <span class="nav-icone">🔬</span>
+        <span>Heredograma</span>
+      </button>
+      <button data-secao="pesquisa" class="nav-btn">
+        <span class="nav-icone">🔍</span>
+        <span>Pesquisa</span>
+      </button>
+      <button data-secao="ia" class="nav-btn">
+        <span class="nav-icone">🤖</span>
+        <span>Assistente IA</span>
+      </button>
+      <button data-secao="configuracoes" class="nav-btn">
+        <span class="nav-icone">⚙️</span>
+        <span>Configurações</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <small>v1.0 — Uso Escolar</small>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+
+    <!-- Topbar -->
+    <header id="topbar">
+      <button id="btn-menu-mobile" aria-label="Menu">☰</button>
+      <h1 id="topbar-titulo">Dashboard</h1>
+      <div class="topbar-acoes">
+        <button id="btn-tema" title="Alternar tema" aria-label="Tema">🌙</button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section id="secao-dashboard" class="secao">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Visão geral da sua árvore genealógica</p>
+      </div>
+
+      <div class="dash-cards">
+        <div class="dash-card">
+          <div class="dash-card-icone">👥</div>
+          <div class="dash-card-info">
+            <span id="dash-total" class="dash-num">0</span>
+            <small>Total de Pessoas</small>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icone">♂️</div>
+          <div class="dash-card-info">
+            <span id="dash-homens" class="dash-num">0</span>
+            <small>Homens</small>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icone">♀️</div>
+          <div class="dash-card-info">
+            <span id="dash-mulheres" class="dash-num">0</span>
+            <small>Mulheres</small>
+          </div>
+        </div>
+        <div class="dash-card dash-card-alerta">
+          <div class="dash-card-icone">🔴</div>
+          <div class="dash-card-info">
+            <span id="dash-afetados" class="dash-num">0</span>
+            <small>Afetados</small>
+          </div>
+        </div>
+        <div class="dash-card dash-card-aviso">
+          <div class="dash-card-icone">🟠</div>
+          <div class="dash-card-info">
+            <span id="dash-portadores" class="dash-num">0</span>
+            <small>Portadores</small>
+          </div>
+        </div>
+        <div class="dash-card dash-card-neutro">
+          <div class="dash-card-icone">✝️</div>
+          <div class="dash-card-info">
+            <span id="dash-falecidos" class="dash-num">0</span>
+            <small>Falecidos</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-secoes">
+        <div class="dash-bloco">
+          <h3>Últimas pessoas cadastradas</h3>
+          <div id="dash-recentes">
+            <p class="lista-vazia">Nenhuma pessoa cadastrada.</p>
+          </div>
+        </div>
+
+        <div class="dash-bloco dash-legenda">
+          <h3>Legenda do Heredograma</h3>
+          <div class="legenda-grid">
+            <div class="legenda-item">
+              <svg width="32" height="32"><rect x="6" y="6" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <span>Homem</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="32" height="32"><circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <span>Mulher</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="32" height="32"><polygon points="16,4 28,16 16,28 4,16" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <span>Sexo Indefinido</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="32" height="32"><rect x="6" y="6" width="20" height="20" fill="#dc2626" stroke="#dc2626" stroke-width="2"/></svg>
+              <span>Afetado (preenchido)</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="32" height="32">
+                <circle cx="16" cy="16" r="10" fill="none" stroke="#ea580c" stroke-width="2"/>
+                <path d="M6,16 A10,10 0 0,1 26,16 Z" fill="#ea580c"/>
+              </svg>
+              <span>Portador (meio)</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="32" height="32">
+                <rect x="6" y="6" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+                <line x1="2" y1="30" x2="30" y2="2" stroke="#b91c1c" stroke-width="2"/>
+              </svg>
+              <span>Falecido (traço)</span>
+            </div>
+            <div class="legenda-item">
+              <svg width="50" height="32">
+                <rect x="2" y="8" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"/>
+                <line x1="18" y1="16" x2="32" y2="16" stroke="currentColor" stroke-width="2"/>
+                <line x1="23" y1="10" x2="23" y2="22" stroke="#ca8a04" stroke-width="2"/>
+                <line x1="27" y1="10" x2="27" y2="22" stroke="#ca8a04" stroke-width="2"/>
+                <circle cx="40" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <span>Casamento</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-acoes-rapidas">
+        <button class="btn btn-primario" onclick="UI.navegarPara('cadastro')">+ Nova Pessoa</button>
+        <button class="btn btn-secundario" onclick="UI.navegarPara('heredograma')">Ver Heredograma</button>
+        <button class="btn btn-secundario" onclick="UI.navegarPara('arvore')">Ver Árvore</button>
+        <button class="btn btn-outline" id="btn-carregar-exemplo">Carregar Exemplo</button>
+      </div>
+    </section>
+
+    <!-- CADASTRO -->
+    <section id="secao-cadastro" class="secao hidden">
+      <div class="page-header">
+        <h2>Cadastro de Pessoas</h2>
+        <p>Adicione e gerencie os membros da família</p>
+      </div>
+
+      <div class="cadastro-layout">
+
+        <!-- Formulário -->
+        <div class="form-container">
+          <h3 id="form-titulo">Nova Pessoa</h3>
+          <form id="form-pessoa">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="nome">Nome *</label>
+                <input type="text" id="nome" placeholder="Nome" required>
+              </div>
+              <div class="form-group">
+                <label for="sobrenome">Sobrenome</label>
+                <input type="text" id="sobrenome" placeholder="Sobrenome">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="sexo">Sexo</label>
+                <select id="sexo">
+                  <option value="">Indefinido</option>
+                  <option value="M">♂ Masculino</option>
+                  <option value="F">♀ Feminino</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="data-nascimento">Data de Nascimento</label>
+                <input type="date" id="data-nascimento">
+              </div>
+            </div>
+
+            <!-- Foto -->
+            <div class="form-group">
+              <label>Foto</label>
+              <div class="foto-area">
+                <img id="foto-preview" class="hidden" alt="Preview">
+                <label for="foto-input" class="btn btn-outline btn-sm">📷 Selecionar foto</label>
+                <input type="file" id="foto-input" accept="image/*" class="hidden">
+              </div>
+            </div>
+
+            <!-- Checkboxes -->
+            <div class="form-row form-checks">
+              <label class="check-label">
+                <input type="checkbox" id="vivo" checked>
+                <span class="check-custom"></span>
+                Vivo
+              </label>
+              <label class="check-label check-afetado">
+                <input type="checkbox" id="afetado">
+                <span class="check-custom"></span>
+                Afetado
+              </label>
+              <label class="check-label check-portador">
+                <input type="checkbox" id="portador">
+                <span class="check-custom"></span>
+                Portador
+              </label>
+            </div>
+
+            <!-- Relações -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pai-select">Pai</label>
+                <select id="pai-select">
+                  <option value="">-- Nenhum --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="mae-select">Mãe</label>
+                <select id="mae-select">
+                  <option value="">-- Nenhum --</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="conjuges-select">Cônjuge(s) <small>(Ctrl+click para múltiplos)</small></label>
+                <select id="conjuges-select" multiple size="4"></select>
+              </div>
+              <div class="form-group">
+                <label for="filhos-select">Filhos <small>(Ctrl+click para múltiplos)</small></label>
+                <select id="filhos-select" multiple size="4"></select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="observacoes">Observações</label>
+              <textarea id="observacoes" rows="3" placeholder="Condições, notas clínicas, etc."></textarea>
+            </div>
+
+            <div class="form-acoes">
+              <button type="submit" id="btn-salvar" class="btn btn-primario">Salvar</button>
+              <button type="button" id="btn-limpar" class="btn btn-outline">Limpar</button>
+              <button type="button" id="btn-excluir" class="btn btn-perigo hidden">Excluir</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Lista -->
+        <div class="lista-container">
+          <div class="lista-header">
+            <h3>Pessoas Cadastradas</h3>
+            <input type="text" id="pesquisa-cadastro" placeholder="🔍 Buscar...">
+          </div>
+          <div id="lista-pessoas">
+            <p class="lista-vazia">Nenhuma pessoa cadastrada.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ÁRVORE GENEALÓGICA -->
+    <section id="secao-arvore" class="secao hidden">
+      <div class="page-header">
+        <h2>Árvore Genealógica</h2>
+        <p>Clique em um cartão para ver o perfil completo</p>
+      </div>
+      <div class="canvas-toolbar">
+        <button id="btn-zoom-in-arv" class="btn btn-outline btn-sm">🔍+</button>
+        <button id="btn-zoom-out-arv" class="btn btn-outline btn-sm">🔍−</button>
+        <button id="btn-centralizar-arv" class="btn btn-outline btn-sm">⊙ Centralizar</button>
+        <button id="btn-exportar-png-arv" class="btn btn-outline btn-sm">💾 PNG</button>
+      </div>
+      <div class="canvas-container">
+        <canvas id="canvas-arvore"></canvas>
+      </div>
+    </section>
+
+    <!-- HEREDOGRAMA -->
+    <section id="secao-heredograma" class="secao hidden">
+      <div class="page-header">
+        <h2>Heredograma</h2>
+        <p>Simbologia genética padrão — clique para ver perfil</p>
+      </div>
+      <div class="canvas-toolbar">
+        <button id="btn-zoom-in" class="btn btn-outline btn-sm">🔍+</button>
+        <button id="btn-zoom-out" class="btn btn-outline btn-sm">🔍−</button>
+        <button id="btn-centralizar-hg" class="btn btn-outline btn-sm">⊙ Centralizar</button>
+        <button id="btn-exportar-png" class="btn btn-outline btn-sm">💾 PNG</button>
+      </div>
+      <div class="canvas-container">
+        <canvas id="canvas-heredograma"></canvas>
+      </div>
+    </section>
+
+    <!-- PESQUISA -->
+    <section id="secao-pesquisa" class="secao hidden">
+      <div class="page-header">
+        <h2>Pesquisa</h2>
+        <p>Encontre pessoas na árvore genealógica</p>
+      </div>
+      <div class="pesquisa-container">
+        <div class="pesquisa-input-wrapper">
+          <span class="pesquisa-icone">🔍</span>
+          <input type="text" id="pesquisa-global" placeholder="Buscar por nome ou sobrenome..." autocomplete="off">
+        </div>
+        <div id="resultado-pesquisa" class="resultados"></div>
+      </div>
+    </section>
+
+    <!-- IA -->
+    <section id="secao-ia" class="secao hidden">
+      <div class="page-header">
+        <h2>Assistente IA</h2>
+        <p>Faça perguntas sobre a árvore genealógica usando Inteligência Artificial</p>
+      </div>
+
+      <div class="chat-container">
+        <div id="chat-mensagens" class="chat-mensagens">
+          <p class="chat-bem-vindo">
+            🤖 Olá! Sou seu assistente de genealogia.<br>
+            Posso responder perguntas como:<br>
+            <em>"Quem é o avô de Lucas?"</em><br>
+            <em>"Quantas gerações existem?"</em><br>
+            <em>"Quem é afetado pela condição?"</em><br><br>
+            Configure sua chave de API Groq nas <strong>Configurações</strong> para começar.
+          </p>
+        </div>
+        <form id="form-chat" class="chat-form">
+          <input type="text" id="chat-input" placeholder="Digite sua pergunta..." autocomplete="off">
+          <button type="submit" class="btn btn-primario">Enviar</button>
+          <button type="button" id="btn-limpar-chat" class="btn btn-outline btn-sm">Limpar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- CONFIGURAÇÕES -->
+    <section id="secao-configuracoes" class="secao hidden">
+      <div class="page-header">
+        <h2>Configurações</h2>
+        <p>Gerencie dados e personalize o sistema</p>
+      </div>
+
+      <div class="config-grid">
+
+        <div class="config-bloco">
+          <h3>🤖 API Groq (Inteligência Artificial)</h3>
+          <p>Obtenha sua chave gratuita em <strong>console.groq.com</strong></p>
+          <div class="form-group">
+            <label for="groq-api-key">Chave de API</label>
+            <input type="password" id="groq-api-key" placeholder="gsk_...">
+          </div>
+          <small class="config-nota">A chave é salva localmente no navegador e nunca enviada a terceiros.</small>
+        </div>
+
+        <div class="config-bloco">
+          <h3>💾 Dados</h3>
+          <div class="config-acoes">
+            <button id="btn-exportar" class="btn btn-primario">📤 Exportar JSON</button>
+            <button id="btn-importar" class="btn btn-secundario">📥 Importar JSON</button>
+            <input type="file" id="input-importar" accept=".json" class="hidden">
+          </div>
+          <hr>
+          <button id="btn-limpar-dados" class="btn btn-perigo">🗑️ Apagar todos os dados</button>
+          <small class="config-nota config-aviso">⚠️ Esta ação não pode ser desfeita.</small>
+        </div>
+
+        <div class="config-bloco config-bloco-full">
+          <h3>ℹ️ Sobre</h3>
+          <p>Sistema de Heredograma e Árvore Genealógica para uso escolar.</p>
+          <ul>
+            <li>✅ Funciona sem internet (exceto IA)</li>
+            <li>✅ Dados salvos no navegador (LocalStorage)</li>
+            <li>✅ Exportação/Importação JSON</li>
+            <li>✅ Exportação em PNG</li>
+            <li>✅ Simbologia genética padrão</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Perfil -->
+  <div id="modal-perfil" class="modal hidden" onclick="if(event.target===this)UI.fecharModal()">
+    <div class="modal-conteudo">
+      <button class="modal-fechar" onclick="UI.fecharModal()">✕</button>
+      <div id="modal-perfil-conteudo"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/cadastro.js"></script>
+  <script src="js/arvore.js"></script>
+  <script src="js/heredograma.js"></script>
+  <script src="js/groq.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      UI.init();
+      Cadastro.init();
+      Groq.init();
+    });
+  </script>
+</body>
+</html>
