@@ -291,10 +291,10 @@ const UI = {
             </div>`).join('')}
         </div>` : ''}
 
-        <button class="p2-btn-add" onclick="Cadastro.novoComRelacao('conjuge','${id}'); UI.fecharModal()">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('conjuge','${id}')">
           + Acrescentar cônjuge
         </button>
-        <button class="p2-btn-add" onclick="Cadastro.novoComRelacao('filho','${id}'); UI.fecharModal()">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('filho','${id}')">
           + Acrescentar filho(a)
         </button>
       </div>
@@ -339,7 +339,7 @@ const UI = {
             </div>`).join('')}
         </div>` : ''}
 
-        <button class="p2-btn-add" onclick="Cadastro.novoComRelacao('irmao','${id}'); UI.fecharModal()">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('irmao','${id}')">
           + Acrescentar irmão(ã)
         </button>
         <button class="p2-btn-add" onclick="Cadastro.editar('${id}'); UI.fecharModal()">
@@ -366,6 +366,116 @@ const UI = {
     const modal = document.getElementById('modal-perfil');
     modal.classList.remove('visivel');
     setTimeout(() => modal.classList.add('hidden'), 200);
+  },
+
+  // ===== SELETOR DE RELAÇÃO =====
+  mostrarSeletorRelacao(tipo, idReferencia) {
+    const titulos = { conjuge: 'Acrescentar cônjuge', filho: 'Acrescentar filho(a)', irmao: 'Acrescentar irmão(ã)' };
+    document.getElementById('modal-seletor')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-seletor';
+    overlay.className = 'modal-seletor-overlay';
+    overlay.innerHTML = `
+      <div class="modal-seletor-box">
+        <div class="ms-header">
+          <span class="ms-titulo">${titulos[tipo] || 'Acrescentar'}</span>
+          <button class="ms-fechar" onclick="document.getElementById('modal-seletor').remove()">✕</button>
+        </div>
+        <div class="ms-opcoes">
+          <button class="ms-opcao" onclick="UI._seletorNovo('${tipo}','${idReferencia}')">
+            <span class="ms-icone">✏️</span>
+            <div><strong>Novo cadastro</strong><small>Criar uma nova pessoa</small></div>
+          </button>
+          <button class="ms-opcao" onclick="UI._seletorVerLista('${tipo}','${idReferencia}')">
+            <span class="ms-icone">👥</span>
+            <div><strong>Selecionar existente</strong><small>Vincular alguém já cadastrado</small></div>
+          </button>
+        </div>
+        <div id="ms-lista-wrap" class="ms-lista-wrap hidden">
+          <input type="text" id="ms-pesquisa" class="ms-pesquisa" placeholder="Buscar pessoa..."
+            oninput="UI._seletorFiltrar('${tipo}','${idReferencia}',this.value)">
+          <div id="ms-lista" class="ms-lista"></div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    setTimeout(() => overlay.classList.add('visivel'), 10);
+  },
+
+  _seletorNovo(tipo, idReferencia) {
+    document.getElementById('modal-seletor')?.remove();
+    this.fecharModal();
+    Cadastro.novoComRelacao(tipo, idReferencia);
+  },
+
+  _seletorVerLista(tipo, idReferencia) {
+    document.getElementById('ms-lista-wrap')?.classList.remove('hidden');
+    this._seletorFiltrar(tipo, idReferencia, '');
+    setTimeout(() => document.getElementById('ms-pesquisa')?.focus(), 50);
+  },
+
+  _seletorFiltrar(tipo, idReferencia, q) {
+    const ref = Storage.getById(idReferencia);
+    let pessoas = Storage.getAll().filter(p => p.id !== idReferencia);
+
+    if (tipo === 'conjuge') {
+      const jaConjuges = ref?.conjuges || [];
+      pessoas = pessoas.filter(p => !jaConjuges.includes(p.id));
+    } else if (tipo === 'filho') {
+      const jaFilhos = ref?.filhos || [];
+      pessoas = pessoas.filter(p => !jaFilhos.includes(p.id) && p.pai !== idReferencia && p.mae !== idReferencia);
+    }
+
+    if (q) {
+      const lq = q.toLowerCase();
+      pessoas = pessoas.filter(p => p.nome?.toLowerCase().includes(lq) || p.sobrenome?.toLowerCase().includes(lq));
+    }
+
+    const lista = document.getElementById('ms-lista');
+    if (!lista) return;
+    lista.innerHTML = pessoas.length
+      ? pessoas.map(p => {
+          const cor = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
+          return `
+          <div class="ms-pessoa-item">
+            <div class="ms-pessoa-avatar ${cor}">
+              ${p.foto ? `<img src="${p.foto}">` : (p.nome || '?')[0].toUpperCase()}
+            </div>
+            <div class="ms-pessoa-info">
+              <strong>${p.nome} ${p.sobrenome || ''}</strong>
+              <small>${p.dataNascimento ? new Date(p.dataNascimento).getFullYear() : '?'} · ${p.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
+            </div>
+            <button class="btn btn-primario btn-sm" onclick="UI._seletorVincular('${tipo}','${idReferencia}','${p.id}')">Vincular</button>
+          </div>`;
+        }).join('')
+      : '<p class="lista-vazia">Nenhuma pessoa disponível.</p>';
+  },
+
+  _seletorVincular(tipo, idReferencia, idSelecionado) {
+    const ref = Storage.getById(idReferencia);
+    if (tipo === 'conjuge') {
+      Storage.vincularConjuge(idReferencia, idSelecionado);
+      this.toast('Cônjuge vinculado!', 'sucesso');
+    } else if (tipo === 'filho') {
+      Storage.vincularFilho(idReferencia, idSelecionado, ref?.sexo);
+      this.toast('Filho(a) vinculado!', 'sucesso');
+    } else if (tipo === 'irmao') {
+      const selecionado = Storage.getById(idSelecionado);
+      if (selecionado && ref) {
+        const atualizado = { ...selecionado };
+        if (!atualizado.pai && ref.pai) atualizado.pai = ref.pai;
+        if (!atualizado.mae && ref.mae) atualizado.mae = ref.mae;
+        Storage.update(atualizado);
+        this.toast('Irmão(ã) vinculado!', 'sucesso');
+      }
+    }
+    document.getElementById('modal-seletor')?.remove();
+    Cadastro.atualizarSelects();
+    Cadastro.renderizarLista();
+    this.atualizarDashboard();
+    this.verPerfil(idReferencia);
   },
 
   toast(msg, tipo = 'info') {
