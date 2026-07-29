@@ -1,19 +1,13 @@
 const Arvore = {
-  canvas: null,
-  ctx: null,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  dragging: false,
-  lastX: 0,
-  lastY: 0,
-  nodes: [],
-  imagens: {},
+  canvas: null, ctx: null,
+  scale: 1, offsetX: 0, offsetY: 0,
+  dragging: false, lastX: 0, lastY: 0,
+  nodes: [], imagens: {}, _geracao: {},
 
-  W: 120,
-  H: 80,
-  HGAP: 160,
-  VGAP: 130,
+  W: 130, H: 76,
+  COUPLE_SEP: 150,  // gap entre cônjuges (centro a centro)
+  FAMILY_GAP: 180,  // gap entre famílias
+  VGAP: 140,
 
   init() {
     this.canvas = document.getElementById('canvas-arvore');
@@ -26,169 +20,216 @@ const Arvore = {
 
   resize() {
     if (!this.canvas) return;
-    const container = this.canvas.parentElement;
-    this.canvas.width = container.clientWidth || window.innerWidth - 240;
-    this.canvas.height = container.clientHeight || 520;
+    const c = this.canvas.parentElement;
+    this.canvas.width  = c.clientWidth  || window.innerWidth - 240;
+    this.canvas.height = c.clientHeight || 520;
   },
 
   bindEventos() {
     this.canvas.addEventListener('wheel', e => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      this.scale = Math.min(3, Math.max(0.2, this.scale * delta));
+      this.scale = Math.min(3, Math.max(0.2, this.scale * (e.deltaY > 0 ? 0.9 : 1.1)));
       this.desenhar();
     }, { passive: false });
 
-    this.canvas.addEventListener('mousedown', e => {
-      this.dragging = true;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-    });
+    this.canvas.addEventListener('mousedown', e => { this.dragging = true; this.lastX = e.clientX; this.lastY = e.clientY; });
     this.canvas.addEventListener('mousemove', e => {
       if (!this.dragging) return;
-      this.offsetX += e.clientX - this.lastX;
-      this.offsetY += e.clientY - this.lastY;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-      this.desenhar();
+      this.offsetX += e.clientX - this.lastX; this.offsetY += e.clientY - this.lastY;
+      this.lastX = e.clientX; this.lastY = e.clientY; this.desenhar();
     });
-    this.canvas.addEventListener('mouseup', () => { this.dragging = false; });
+    this.canvas.addEventListener('mouseup',    () => { this.dragging = false; });
     this.canvas.addEventListener('mouseleave', () => { this.dragging = false; });
 
+    this.canvas.addEventListener('touchstart', e => {
+      this.dragging = true; this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY;
+    }, { passive: true });
+    this.canvas.addEventListener('touchmove', e => {
+      if (!this.dragging) return;
+      this.offsetX += e.touches[0].clientX - this.lastX; this.offsetY += e.touches[0].clientY - this.lastY;
+      this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY; this.desenhar();
+    }, { passive: true });
+    this.canvas.addEventListener('touchend', () => { this.dragging = false; });
+
     this.canvas.addEventListener('click', e => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left - this.offsetX) / this.scale;
-      const my = (e.clientY - rect.top - this.offsetY) / this.scale;
-      const node = this.nodes.find(n =>
-        mx >= n.x - this.W / 2 && mx <= n.x + this.W / 2 &&
-        my >= n.y - this.H / 2 && my <= n.y + this.H / 2
+      const r = this.canvas.getBoundingClientRect();
+      const mx = (e.clientX - r.left - this.offsetX) / this.scale;
+      const my = (e.clientY - r.top  - this.offsetY) / this.scale;
+      const n = this.nodes.find(n =>
+        mx >= n.x - this.W/2 && mx <= n.x + this.W/2 &&
+        my >= n.y - this.H/2 && my <= n.y + this.H/2
       );
-      if (node) UI.verPerfil(node.id);
+      if (n) UI.verPerfil(n.id);
     });
 
-    document.getElementById('btn-zoom-in-arv')?.addEventListener('click', () => {
-      this.scale = Math.min(3, this.scale * 1.2); this.desenhar();
-    });
-    document.getElementById('btn-zoom-out-arv')?.addEventListener('click', () => {
-      this.scale = Math.max(0.2, this.scale * 0.8); this.desenhar();
-    });
+    document.getElementById('btn-zoom-in-arv')?.addEventListener('click', () => { this.scale = Math.min(3, this.scale * 1.2); this.desenhar(); });
+    document.getElementById('btn-zoom-out-arv')?.addEventListener('click', () => { this.scale = Math.max(0.2, this.scale * 0.8); this.desenhar(); });
     document.getElementById('btn-centralizar-arv')?.addEventListener('click', () => this.centralizar());
     document.getElementById('btn-exportar-png-arv')?.addEventListener('click', () => this.exportarPNG());
-
     window.addEventListener('resize', () => { this.resize(); this.desenhar(); });
   },
 
   renderizar() {
     this.calcularLayout();
-    this.preCarregarImagens(() => {
-      this.centralizar();
-    });
+    this.preCarregarImagens(() => this.centralizar());
   },
 
   calcularLayout() {
     const pessoas = Storage.getAll();
-    if (!pessoas.length) { this.nodes = []; return; }
+    if (!pessoas.length) { this.nodes = []; this._geracao = {}; return; }
 
+    const byId = {};
+    pessoas.forEach(p => { byId[p.id] = p; });
+
+    // Passo 1: geração via BFS
+    const geracao = {};
     const raizes = pessoas.filter(p => !p.pai && !p.mae);
     if (!raizes.length) raizes.push(pessoas[0]);
 
-    const geracoes = [];
+    const fila = raizes.map(r => ({ id: r.id, g: 0 }));
     const visitados = new Set();
-    const fila = raizes.map(r => ({ pessoa: r, gen: 0 }));
 
     while (fila.length) {
-      const { pessoa, gen } = fila.shift();
-      if (visitados.has(pessoa.id)) continue;
-      visitados.add(pessoa.id);
-      if (!geracoes[gen]) geracoes[gen] = [];
-      geracoes[gen].push(pessoa);
-      (pessoa.filhos || []).forEach(fid => {
-        const filho = pessoas.find(p => p.id === fid);
-        if (filho && !visitados.has(filho.id)) fila.push({ pessoa: filho, gen: gen + 1 });
+      const { id, g } = fila.shift();
+      if (visitados.has(id)) continue;
+      visitados.add(id);
+      geracao[id] = geracao[id] !== undefined ? Math.max(geracao[id], g) : g;
+      const p = byId[id];
+      if (!p) continue;
+      (p.conjuges || []).forEach(cid => {
+        if (!visitados.has(cid)) {
+          geracao[cid] = geracao[cid] !== undefined ? Math.max(geracao[cid], g) : g;
+          fila.push({ id: cid, g });
+        }
+      });
+      (p.filhos || []).forEach(fid => {
+        const ng = g + 1;
+        if (!visitados.has(fid)) {
+          geracao[fid] = geracao[fid] !== undefined ? Math.max(geracao[fid], ng) : ng;
+          fila.push({ id: fid, g: ng });
+        }
       });
     }
+    pessoas.forEach(p => { if (geracao[p.id] === undefined) geracao[p.id] = 0; });
+    this._geracao = geracao;
 
-    pessoas.forEach(p => {
-      if (!visitados.has(p.id)) {
-        if (!geracoes[0]) geracoes[0] = [];
-        geracoes[0].push(p);
-      }
-    });
+    const maxG = Math.max(...Object.values(geracao));
 
-    this.nodes = [];
-    const maxGen = geracoes.filter(Boolean).length;
-    const maxPorGen = Math.max(...geracoes.filter(Boolean).map(g => g.length));
+    // Passo 2: agrupar cônjuges e posicionar X
+    const xPos = {};
+    for (let g = 0; g <= maxG; g++) {
+      const membros = pessoas.filter(p => geracao[p.id] === g);
+      const usados = new Set();
+      const unidades = [];
 
-    geracoes.forEach((gen, gi) => {
-      if (!gen) return;
-      const totalW = gen.length * this.HGAP;
-      const startX = -totalW / 2 + this.HGAP / 2;
-      gen.forEach((pessoa, pi) => {
-        this.nodes.push({
-          id: pessoa.id,
-          pessoa,
-          x: startX + pi * this.HGAP,
-          y: gi * this.VGAP,
-        });
+      membros.forEach(p => {
+        if (usados.has(p.id)) return;
+        usados.add(p.id);
+        const conj = (p.conjuges || [])
+          .map(cid => byId[cid])
+          .find(c => c && geracao[c.id] === g && !usados.has(c.id));
+        if (conj) { usados.add(conj.id); unidades.push([p, conj]); }
+        else unidades.push([p]);
       });
-    });
+
+      let x = 0;
+      const local = {};
+      unidades.forEach((u, i) => {
+        if (i > 0) x += this.FAMILY_GAP;
+        if (u.length === 2) {
+          local[u[0].id] = x;
+          local[u[1].id] = x + this.COUPLE_SEP;
+          x += this.COUPLE_SEP;
+        } else {
+          local[u[0].id] = x;
+        }
+      });
+
+      const shift = -x / 2;
+      Object.entries(local).forEach(([id, px]) => { xPos[id] = px + shift; });
+    }
+
+    this.nodes = pessoas.map(p => ({
+      id: p.id, pessoa: p,
+      x: xPos[p.id] ?? 0,
+      y: geracao[p.id] * this.VGAP,
+    }));
   },
 
   preCarregarImagens(callback) {
     const promises = this.nodes
       .filter(n => n.pessoa.foto)
-      .map(n => new Promise(resolve => {
-        if (this.imagens[n.id]) return resolve();
+      .map(n => new Promise(res => {
+        if (this.imagens[n.id]) return res();
         const img = new Image();
-        img.onload = () => { this.imagens[n.id] = img; resolve(); };
-        img.onerror = resolve;
+        img.onload  = () => { this.imagens[n.id] = img; res(); };
+        img.onerror = res;
         img.src = n.pessoa.foto;
       }));
     Promise.all(promises).then(callback);
   },
 
   centralizar() {
+    if (!this.canvas) return;
     if (!this.nodes.length) {
-      this.offsetX = this.canvas.width / 2;
-      this.offsetY = 60;
-      this.scale = 1;
-      this.desenhar();
-      return;
+      this.offsetX = this.canvas.width / 2; this.offsetY = 60; this.scale = 1;
+      this.desenhar(); return;
     }
-    const xs = this.nodes.map(n => n.x);
-    const ys = this.nodes.map(n => n.y);
+    const xs = this.nodes.map(n => n.x), ys = this.nodes.map(n => n.y);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const largura = Math.max(...xs) - Math.min(...xs) + this.HGAP;
-    const altura = Math.max(...ys) - Math.min(...ys) + this.VGAP;
-    this.scale = Math.min(
-      this.canvas.width / (largura + 60),
-      this.canvas.height / (altura + 80),
-      1.2
-    );
-    this.offsetX = this.canvas.width / 2 - cx * this.scale;
+    const larg = Math.max(...xs) - Math.min(...xs) + this.FAMILY_GAP + this.W;
+    const alt  = Math.max(...ys) - Math.min(...ys) + this.VGAP + this.H;
+    this.scale = Math.min(this.canvas.width / (larg + 80), this.canvas.height / (alt + 80), 1.3);
+    this.offsetX = this.canvas.width  / 2 - cx * this.scale;
     this.offsetY = this.canvas.height / 2 - cy * this.scale;
     this.desenhar();
   },
 
   desenhar() {
+    if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
-    const isDark = document.documentElement.getAttribute('data-tema') === 'escuro';
+    const dark = document.documentElement.getAttribute('data-tema') === 'escuro';
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (!this.nodes.length) {
+      ctx.fillStyle = dark ? '#475569' : '#94a3b8';
+      ctx.font = '15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Cadastre pessoas para visualizar a árvore.', this.canvas.width / 2, this.canvas.height / 2);
+      return;
+    }
+
     ctx.save();
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    const corLinha = isDark ? '#64748b' : '#cbd5e1';
-    const corCartao = isDark ? '#1e293b' : '#ffffff';
-    const corBorda = isDark ? '#334155' : '#e2e8f0';
-    const corTexto = isDark ? '#f1f5f9' : '#1e293b';
-    const corSub = isDark ? '#94a3b8' : '#64748b';
+    const COR = {
+      linha:     dark ? '#475569' : '#cbd5e1',
+      casamento: dark ? '#fbbf24' : '#b45309',
+      cartao:    dark ? '#1e293b' : '#ffffff',
+      borda:     dark ? '#334155' : '#e2e8f0',
+      texto:     dark ? '#f1f5f9' : '#1e293b',
+      sub:       dark ? '#94a3b8' : '#64748b',
+      label:     dark ? '#334155' : '#e2e8f0',
+    };
 
     const nodeMap = {};
     this.nodes.forEach(n => { nodeMap[n.id] = n; });
 
-    // Linhas
+    // ── 1. Rótulos de geração ──
+    const algar = ['I','II','III','IV','V','VI','VII','VIII'];
+    const xMin = Math.min(...this.nodes.map(n => n.x));
+    const xLabel = xMin - this.W / 2 - 20;
+    const geracoesUsadas = [...new Set(Object.values(this._geracao))].sort((a, b) => a - b);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = 'bold 13px system-ui';
+    geracoesUsadas.forEach(g => {
+      const y = this.nodes.find(n => this._geracao[n.id] === g)?.y;
+      if (y === undefined) return;
+      ctx.fillStyle = COR.label;
+      ctx.fillText(algar[g] || `G${g+1}`, xLabel, y);
+    });
+
+    // ── 2. Linhas de casamento ──
     const casamentos = new Set();
     this.nodes.forEach(n => {
       (n.pessoa.conjuges || []).forEach(cid => {
@@ -196,148 +237,146 @@ const Arvore = {
         if (casamentos.has(chave) || !nodeMap[cid]) return;
         casamentos.add(chave);
         const c = nodeMap[cid];
+        const x1 = Math.min(n.x, c.x) + this.W / 2 + 2;
+        const x2 = Math.max(n.x, c.x) - this.W / 2 - 2;
+        const y  = (n.y + c.y) / 2;
         ctx.beginPath();
-        ctx.setLineDash([6, 3]);
-        ctx.strokeStyle = isDark ? '#facc15' : '#ca8a04';
-        ctx.lineWidth = 1.5;
-        ctx.moveTo(n.x, n.y);
-        ctx.lineTo(c.x, c.y);
-        ctx.stroke();
+        ctx.setLineDash([6, 4]); ctx.strokeStyle = COR.casamento; ctx.lineWidth = 2;
+        ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
         ctx.setLineDash([]);
+        // coração no centro
+        const mx = (x1 + x2) / 2;
+        ctx.fillStyle = COR.casamento; ctx.font = '11px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('♥', mx, y);
       });
     });
 
+    // ── 3. Linhas pais → filhos ──
+    const familias = new Map();
     this.nodes.forEach(n => {
       const pai = n.pessoa.pai ? nodeMap[n.pessoa.pai] : null;
       const mae = n.pessoa.mae ? nodeMap[n.pessoa.mae] : null;
-      if (pai || mae) {
-        let ox = n.x;
-        if (pai && mae) ox = (pai.x + mae.x) / 2;
-        else if (pai) ox = pai.x;
-        else ox = mae.x;
-        const oy = (pai || mae).y + this.H / 2 + 8;
-
-        ctx.beginPath();
-        ctx.strokeStyle = corLinha;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([]);
-        ctx.moveTo(ox, oy);
-        ctx.lineTo(ox, n.y - this.H / 2 - 8);
-        ctx.lineTo(n.x, n.y - this.H / 2 - 8);
-        ctx.lineTo(n.x, n.y - this.H / 2);
-        ctx.stroke();
-      }
+      if (!pai && !mae) return;
+      const key = `${n.pessoa.pai||''}_${n.pessoa.mae||''}`;
+      if (!familias.has(key)) familias.set(key, { pai, mae, filhos: [] });
+      familias.get(key).filhos.push(n);
     });
 
-    // Cartões
+    familias.forEach(({ pai, mae, filhos }) => {
+      let origemX;
+      if (pai && mae) origemX = (pai.x + mae.x) / 2;
+      else origemX = (pai || mae).x;
+
+      const origemY = (pai || mae).y + this.H / 2 + 4;
+      const barY    = filhos[0].y - this.H / 2 - 20;
+
+      ctx.beginPath();
+      ctx.strokeStyle = COR.linha; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+
+      if (filhos.length === 1) {
+        ctx.moveTo(origemX, origemY);
+        ctx.lineTo(origemX, barY);
+        ctx.lineTo(filhos[0].x, barY);
+        ctx.lineTo(filhos[0].x, filhos[0].y - this.H / 2 - 2);
+      } else {
+        const xs = filhos.map(f => f.x);
+        const xEsq = Math.min(origemX, ...xs);
+        const xDir = Math.max(origemX, ...xs);
+        ctx.moveTo(origemX, origemY);
+        ctx.lineTo(origemX, barY);
+        ctx.moveTo(xEsq, barY); ctx.lineTo(xDir, barY);
+        filhos.forEach(f => {
+          ctx.moveTo(f.x, barY);
+          ctx.lineTo(f.x, f.y - this.H / 2 - 2);
+        });
+      }
+      ctx.stroke();
+    });
+
+    // ── 4. Cartões ──
     this.nodes.forEach(n => {
       const { x, y, pessoa } = n;
-      const w = this.W, h = this.H;
-      const r = 10;
+      const w = this.W, h = this.H, r = 8;
 
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.12)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetY = 3;
+      ctx.shadowColor = 'rgba(0,0,0,0.12)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
 
-      // Fundo cartão
+      // Fundo
       ctx.beginPath();
-      ctx.roundRect(x - w / 2, y - h / 2, w, h, r);
-      ctx.fillStyle = corCartao;
-      ctx.fill();
-      ctx.strokeStyle = pessoa.afetado ? '#ef4444' : pessoa.portador ? '#f97316' : corBorda;
+      ctx.roundRect(x - w/2, y - h/2, w, h, r);
+      ctx.fillStyle = COR.cartao; ctx.fill();
+      ctx.strokeStyle = pessoa.afetado ? '#ef4444' : pessoa.portador ? '#f97316' : COR.borda;
       ctx.lineWidth = pessoa.afetado || pessoa.portador ? 2.5 : 1.5;
       ctx.stroke();
-
       ctx.shadowColor = 'transparent';
 
-      // Foto ou avatar
-      const avatarSize = 38;
-      const ax = x - w / 2 + 6;
-      const ay = y - avatarSize / 2;
+      // Avatar
+      const av = 36, ax = x - w/2 + 8, ay = y - av/2;
+      const cor = pessoa.sexo === 'M' ? (dark ? '#3b82f6' : '#2563eb')
+                : pessoa.sexo === 'F' ? (dark ? '#ec4899' : '#db2777')
+                : (dark ? '#8b5cf6' : '#7c3aed');
 
       if (this.imagens[n.id]) {
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(ax + avatarSize / 2, ay + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(this.imagens[n.id], ax, ay, avatarSize, avatarSize);
+        ctx.beginPath(); ctx.arc(ax + av/2, ay + av/2, av/2, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(this.imagens[n.id], ax, ay, av, av);
         ctx.restore();
       } else {
-        const cor = pessoa.sexo === 'M'
-          ? (isDark ? '#3b82f6' : '#2563eb')
-          : pessoa.sexo === 'F'
-          ? (isDark ? '#ec4899' : '#db2777')
-          : (isDark ? '#8b5cf6' : '#7c3aed');
-        ctx.beginPath();
-        ctx.arc(ax + avatarSize / 2, ay + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.fillStyle = cor;
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold 16px system-ui`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText((pessoa.nome || '?')[0].toUpperCase(), ax + avatarSize / 2, ay + avatarSize / 2);
+        ctx.beginPath(); ctx.arc(ax + av/2, ay + av/2, av/2, 0, Math.PI * 2);
+        ctx.fillStyle = cor; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 15px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText((pessoa.nome || '?')[0].toUpperCase(), ax + av/2, ay + av/2);
       }
 
       // Texto
-      ctx.textBaseline = 'alphabetic';
-      ctx.textAlign = 'left';
-      const tx = ax + avatarSize + 8;
-      const maxW = w - avatarSize - 22;
+      const tx = ax + av + 8, maxW = w - av - 24;
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      ctx.fillStyle = COR.texto; ctx.font = 'bold 11px system-ui';
+      ctx.fillText(this.truncar(pessoa.nome || '', maxW, ctx), tx, y - 10);
+      ctx.fillStyle = COR.sub; ctx.font = '10px system-ui';
+      ctx.fillText(this.truncar(pessoa.sobrenome || '', maxW, ctx), tx, y + 4);
 
-      ctx.fillStyle = corTexto;
-      ctx.font = `bold 11px system-ui`;
-      ctx.fillText(this.truncar(pessoa.nome, maxW, ctx), tx, y - 8);
+      // Ano de nascimento
+      if (pessoa.dataNascimento) {
+        ctx.font = '9px system-ui'; ctx.fillStyle = COR.sub;
+        ctx.fillText(new Date(pessoa.dataNascimento).getFullYear(), tx, y + 17);
+      }
 
-      ctx.fillStyle = corSub;
-      ctx.font = `10px system-ui`;
-      ctx.fillText(this.truncar(pessoa.sobrenome || '', maxW, ctx), tx, y + 6);
-
-      // Tags
+      // Tags (falecido, afetado, portador)
+      let tagX = x - w/2 + 6;
       const tags = [];
-      if (pessoa.afetado) tags.push({ txt: 'Afetado', cor: '#ef4444' });
-      if (pessoa.portador) tags.push({ txt: 'Portador', cor: '#f97316' });
-      if (!pessoa.vivo) tags.push({ txt: 'Falecido', cor: '#64748b' });
+      if (pessoa.afetado)      tags.push({ t: 'Afetado',  c: '#ef4444' });
+      if (pessoa.portador)     tags.push({ t: 'Portador', c: '#f97316' });
+      if (pessoa.vivo === false) tags.push({ t: 'Falecido', c: '#64748b' });
 
-      let tagX = x - w / 2 + 6;
-      tags.slice(0, 2).forEach(t => {
-        ctx.fillStyle = t.cor;
-        ctx.font = 'bold 8px system-ui';
-        const tw = ctx.measureText(t.txt).width + 8;
-        ctx.beginPath();
-        ctx.roundRect(tagX, y + 14, tw, 13, 3);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.fillText(t.txt, tagX + 4, y + 23);
-        tagX += tw + 4;
+      ctx.font = 'bold 8px system-ui';
+      tags.slice(0, 2).forEach(({ t, c }) => {
+        const tw = ctx.measureText(t).width + 8;
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.roundRect(tagX, y + h/2 - 15, tw, 12, 3); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(t, tagX + 4, y + h/2 - 6);
+        tagX += tw + 3;
       });
 
       ctx.restore();
     });
 
     ctx.restore();
-
-    if (!this.nodes.length) {
-      ctx.fillStyle = document.documentElement.getAttribute('data-tema') === 'escuro' ? '#64748b' : '#94a3b8';
-      ctx.font = '16px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText('Nenhum dado para exibir. Cadastre pessoas primeiro.', this.canvas.width / 2, this.canvas.height / 2);
-    }
   },
 
   truncar(texto, maxW, ctx) {
-    if (!texto) return '';
-    if (ctx.measureText(texto).width <= maxW) return texto;
+    if (!texto || ctx.measureText(texto).width <= maxW) return texto;
     let t = texto;
     while (t.length > 0 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
     return t + '…';
   },
 
   exportarPNG() {
-    const link = document.createElement('a');
-    link.download = 'arvore_genealogica.png';
-    link.href = this.canvas.toDataURL('image/png');
-    link.click();
+    const a = document.createElement('a');
+    a.download = 'arvore_genealogica.png';
+    a.href = this.canvas.toDataURL('image/png');
+    a.click();
   }
 };

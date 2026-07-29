@@ -1,18 +1,13 @@
 const Heredograma = {
-  canvas: null,
-  ctx: null,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  dragging: false,
-  lastX: 0,
-  lastY: 0,
-  nodes: [],
+  canvas: null, ctx: null,
+  scale: 1, offsetX: 0, offsetY: 0,
+  dragging: false, lastX: 0, lastY: 0,
+  nodes: [], _geracao: {},
 
-  // Dimensões dos símbolos
-  SIZE: 36,
-  HGAP: 100,
-  VGAP: 110,
+  SIZE: 26,
+  COUPLE_SEP: 68,   // distância horizontal entre cônjuges
+  FAMILY_GAP: 110,  // gap entre famílias na mesma geração
+  VGAP: 130,
 
   init() {
     this.canvas = document.getElementById('canvas-heredograma');
@@ -25,186 +20,204 @@ const Heredograma = {
 
   resize() {
     if (!this.canvas) return;
-    const container = this.canvas.parentElement;
-    this.canvas.width = container.clientWidth || window.innerWidth - 240;
-    this.canvas.height = container.clientHeight || 500;
+    const c = this.canvas.parentElement;
+    this.canvas.width  = c.clientWidth  || window.innerWidth - 240;
+    this.canvas.height = c.clientHeight || 500;
   },
 
   bindEventos() {
     this.canvas.addEventListener('wheel', e => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      this.scale = Math.min(3, Math.max(0.3, this.scale * delta));
+      this.scale = Math.min(3, Math.max(0.2, this.scale * (e.deltaY > 0 ? 0.9 : 1.1)));
       this.desenhar();
     }, { passive: false });
 
-    this.canvas.addEventListener('mousedown', e => {
-      this.dragging = true;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-    });
-
+    this.canvas.addEventListener('mousedown', e => { this.dragging = true; this.lastX = e.clientX; this.lastY = e.clientY; });
     this.canvas.addEventListener('mousemove', e => {
       if (!this.dragging) return;
-      this.offsetX += e.clientX - this.lastX;
-      this.offsetY += e.clientY - this.lastY;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-      this.desenhar();
+      this.offsetX += e.clientX - this.lastX; this.offsetY += e.clientY - this.lastY;
+      this.lastX = e.clientX; this.lastY = e.clientY; this.desenhar();
     });
-
-    this.canvas.addEventListener('mouseup', () => { this.dragging = false; });
+    this.canvas.addEventListener('mouseup',    () => { this.dragging = false; });
     this.canvas.addEventListener('mouseleave', () => { this.dragging = false; });
 
-    // Touch
     this.canvas.addEventListener('touchstart', e => {
-      this.dragging = true;
-      this.lastX = e.touches[0].clientX;
-      this.lastY = e.touches[0].clientY;
+      this.dragging = true; this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY;
     }, { passive: true });
-
     this.canvas.addEventListener('touchmove', e => {
       if (!this.dragging) return;
-      this.offsetX += e.touches[0].clientX - this.lastX;
-      this.offsetY += e.touches[0].clientY - this.lastY;
-      this.lastX = e.touches[0].clientX;
-      this.lastY = e.touches[0].clientY;
-      this.desenhar();
+      this.offsetX += e.touches[0].clientX - this.lastX; this.offsetY += e.touches[0].clientY - this.lastY;
+      this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY; this.desenhar();
     }, { passive: true });
-
     this.canvas.addEventListener('touchend', () => { this.dragging = false; });
 
     this.canvas.addEventListener('click', e => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left - this.offsetX) / this.scale;
-      const my = (e.clientY - rect.top - this.offsetY) / this.scale;
-      const node = this.nodes.find(n => Math.abs(n.x - mx) < this.SIZE && Math.abs(n.y - my) < this.SIZE);
-      if (node) UI.verPerfil(node.id);
+      const r = this.canvas.getBoundingClientRect();
+      const mx = (e.clientX - r.left - this.offsetX) / this.scale;
+      const my = (e.clientY - r.top  - this.offsetY) / this.scale;
+      const n = this.nodes.find(n => Math.abs(n.x - mx) < this.SIZE && Math.abs(n.y - my) < this.SIZE);
+      if (n) UI.verPerfil(n.id);
     });
 
-    document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
-      this.scale = Math.min(3, this.scale * 1.2);
-      this.desenhar();
-    });
-    document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
-      this.scale = Math.max(0.3, this.scale * 0.8);
-      this.desenhar();
-    });
+    document.getElementById('btn-zoom-in')?.addEventListener('click', () => { this.scale = Math.min(3, this.scale * 1.2); this.desenhar(); });
+    document.getElementById('btn-zoom-out')?.addEventListener('click', () => { this.scale = Math.max(0.2, this.scale * 0.8); this.desenhar(); });
     document.getElementById('btn-centralizar-hg')?.addEventListener('click', () => this.centralizar());
     document.getElementById('btn-exportar-png')?.addEventListener('click', () => this.exportarPNG());
-
     window.addEventListener('resize', () => { this.resize(); this.desenhar(); });
   },
 
-  renderizar() {
-    this.calcularLayout();
-    this.centralizar();
-  },
+  renderizar() { this.calcularLayout(); this.centralizar(); },
 
   calcularLayout() {
     const pessoas = Storage.getAll();
-    if (!pessoas.length) { this.nodes = []; this.desenhar(); return; }
+    if (!pessoas.length) { this.nodes = []; this._geracao = {}; this.desenhar(); return; }
 
-    // Encontrar raízes (sem pais cadastrados)
-    const temPai = new Set();
-    pessoas.forEach(p => {
-      if (p.pai) temPai.add(p.pai);
-      if (p.mae) temPai.add(p.mae);
-    });
+    const byId = {};
+    pessoas.forEach(p => { byId[p.id] = p; });
 
+    // Passo 1: calcular geração via BFS
+    const geracao = {};
     const raizes = pessoas.filter(p => !p.pai && !p.mae);
     if (!raizes.length) raizes.push(pessoas[0]);
 
-    // Layout por geração (BFS)
-    const geracoes = [];
+    const fila = raizes.map(r => ({ id: r.id, g: 0 }));
     const visitados = new Set();
-    const fila = [...raizes.map(r => ({ pessoa: r, gen: 0 }))];
 
     while (fila.length) {
-      const { pessoa, gen } = fila.shift();
-      if (visitados.has(pessoa.id)) continue;
-      visitados.add(pessoa.id);
-
-      if (!geracoes[gen]) geracoes[gen] = [];
-      geracoes[gen].push(pessoa);
-
-      (pessoa.filhos || []).forEach(fid => {
-        const filho = pessoas.find(p => p.id === fid);
-        if (filho && !visitados.has(filho.id)) fila.push({ pessoa: filho, gen: gen + 1 });
+      const { id, g } = fila.shift();
+      if (visitados.has(id)) continue;
+      visitados.add(id);
+      geracao[id] = geracao[id] !== undefined ? Math.max(geracao[id], g) : g;
+      const p = byId[id];
+      if (!p) continue;
+      // Cônjuges ficam na mesma geração
+      (p.conjuges || []).forEach(cid => {
+        if (!visitados.has(cid)) {
+          geracao[cid] = geracao[cid] !== undefined ? Math.max(geracao[cid], g) : g;
+          fila.push({ id: cid, g });
+        }
+      });
+      // Filhos: geração + 1
+      (p.filhos || []).forEach(fid => {
+        const ng = g + 1;
+        if (!visitados.has(fid)) {
+          geracao[fid] = geracao[fid] !== undefined ? Math.max(geracao[fid], ng) : ng;
+          fila.push({ id: fid, g: ng });
+        }
       });
     }
+    pessoas.forEach(p => { if (geracao[p.id] === undefined) geracao[p.id] = 0; });
+    this._geracao = geracao;
 
-    // Adicionar pessoas não visitadas (sem ligação com raízes)
-    pessoas.forEach(p => {
-      if (!visitados.has(p.id)) {
-        if (!geracoes[0]) geracoes[0] = [];
-        geracoes[0].push(p);
-      }
-    });
+    const maxG = Math.max(...Object.values(geracao));
 
-    this.nodes = [];
-    const larguraTotalPorGen = geracoes.map(g => g ? g.length * this.HGAP : 0);
-    const maxLargura = Math.max(...larguraTotalPorGen);
+    // Passo 2: agrupar cônjuges e atribuir posições X
+    const xPos = {};
+    for (let g = 0; g <= maxG; g++) {
+      const membros = pessoas.filter(p => geracao[p.id] === g);
+      const usados = new Set();
+      const unidades = []; // cada item: [pessoa] ou [pessoaA, cônjugeB]
 
-    geracoes.forEach((gen, gi) => {
-      if (!gen) return;
-      const startX = (maxLargura - gen.length * this.HGAP) / 2 + this.HGAP / 2;
-      gen.forEach((pessoa, pi) => {
-        this.nodes.push({
-          id: pessoa.id,
-          pessoa,
-          x: startX + pi * this.HGAP,
-          y: gi * this.VGAP + this.SIZE,
-        });
+      membros.forEach(p => {
+        if (usados.has(p.id)) return;
+        usados.add(p.id);
+        const conj = (p.conjuges || [])
+          .map(cid => byId[cid])
+          .find(c => c && geracao[c.id] === g && !usados.has(c.id));
+        if (conj) { usados.add(conj.id); unidades.push([p, conj]); }
+        else unidades.push([p]);
       });
-    });
+
+      // Calcular posições relativas
+      let x = 0;
+      const local = {};
+      unidades.forEach((u, i) => {
+        if (i > 0) x += this.FAMILY_GAP;
+        if (u.length === 2) {
+          local[u[0].id] = x;
+          local[u[1].id] = x + this.COUPLE_SEP;
+          x += this.COUPLE_SEP;
+        } else {
+          local[u[0].id] = x;
+        }
+      });
+
+      // Centralizar
+      const shift = -x / 2;
+      Object.entries(local).forEach(([id, px]) => { xPos[id] = px + shift; });
+    }
+
+    this.nodes = pessoas.map(p => ({
+      id: p.id, pessoa: p,
+      x: xPos[p.id] ?? 0,
+      y: geracao[p.id] * this.VGAP + this.SIZE * 2.5,
+    }));
   },
 
   centralizar() {
+    if (!this.canvas) return;
     if (!this.nodes.length) {
-      this.offsetX = this.canvas.width / 2;
-      this.offsetY = 50;
-      this.scale = 1;
-      this.desenhar();
-      return;
+      this.offsetX = this.canvas.width / 2; this.offsetY = 60; this.scale = 1;
+      this.desenhar(); return;
     }
-    const xs = this.nodes.map(n => n.x);
-    const ys = this.nodes.map(n => n.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const largura = maxX - minX + this.HGAP;
-    const altura = maxY - minY + this.VGAP;
-    this.scale = Math.min(
-      this.canvas.width / (largura + 40),
-      this.canvas.height / (altura + 40),
-      1.5
-    );
-    this.offsetX = this.canvas.width / 2 - cx * this.scale;
+    const xs = this.nodes.map(n => n.x), ys = this.nodes.map(n => n.y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const larg = Math.max(...xs) - Math.min(...xs) + this.FAMILY_GAP * 2;
+    const alt  = Math.max(...ys) - Math.min(...ys) + this.VGAP * 2;
+    this.scale = Math.min(this.canvas.width / (larg + 60), this.canvas.height / (alt + 80), 1.4);
+    this.offsetX = this.canvas.width  / 2 - cx * this.scale;
     this.offsetY = this.canvas.height / 2 - cy * this.scale;
     this.desenhar();
   },
 
   desenhar() {
+    if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
-    const isDark = document.documentElement.getAttribute('data-tema') === 'escuro';
+    const dark = document.documentElement.getAttribute('data-tema') === 'escuro';
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (!this.nodes.length) {
+      ctx.fillStyle = dark ? '#475569' : '#94a3b8';
+      ctx.font = '15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Cadastre pessoas para visualizar o heredograma.', this.canvas.width / 2, this.canvas.height / 2);
+      return;
+    }
+
     ctx.save();
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    // Cores do tema
-    const corLinha = isDark ? '#94a3b8' : '#475569';
-    const corTexto = isDark ? '#e2e8f0' : '#1e293b';
-    const corFundo = isDark ? '#1e293b' : '#ffffff';
-    const corAfetado = isDark ? '#ef4444' : '#dc2626';
-    const corPortador = isDark ? '#f97316' : '#ea580c';
+    const COR = {
+      linha:     dark ? '#64748b' : '#94a3b8',
+      casamento: dark ? '#fbbf24' : '#b45309',
+      texto:     dark ? '#e2e8f0' : '#1e293b',
+      sub:       dark ? '#94a3b8' : '#64748b',
+      fundo:     dark ? '#1e293b' : '#ffffff',
+      afetado:   '#dc2626',
+      portador:  '#ea580c',
+      label:     dark ? '#334155' : '#cbd5e1',
+    };
 
     const nodeMap = {};
     this.nodes.forEach(n => { nodeMap[n.id] = n; });
+    const S = this.SIZE;
 
-    // 1. Desenhar linhas de casamento
+    // ── 1. Rótulos de geração (I, II, III…) ──
+    const algar = ['I','II','III','IV','V','VI','VII','VIII'];
+    const xMin = Math.min(...this.nodes.map(n => n.x));
+    const xLabel = xMin - this.FAMILY_GAP * 0.6;
+    const geracoesUsadas = [...new Set(Object.values(this._geracao))].sort((a, b) => a - b);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 13px system-ui';
+    geracoesUsadas.forEach(g => {
+      const y = this.nodes.find(n => this._geracao[n.id] === g)?.y;
+      if (y === undefined) return;
+      ctx.fillStyle = COR.label;
+      ctx.fillText(algar[g] || `G${g+1}`, xLabel, y);
+    });
+
+    // ── 2. Linhas de casamento ──
     const casamentos = new Set();
     this.nodes.forEach(n => {
       (n.pessoa.conjuges || []).forEach(cid => {
@@ -212,153 +225,130 @@ const Heredograma = {
         if (casamentos.has(chave) || !nodeMap[cid]) return;
         casamentos.add(chave);
         const c = nodeMap[cid];
+        const x1 = Math.min(n.x, c.x) + S / 2 + 1;
+        const x2 = Math.max(n.x, c.x) - S / 2 - 1;
+        const y  = (n.y + c.y) / 2;
+        // Linha horizontal entre cônjuges
         ctx.beginPath();
-        ctx.strokeStyle = corLinha;
-        ctx.lineWidth = 2;
-        ctx.moveTo(n.x, n.y);
-        ctx.lineTo(c.x, c.y);
-        ctx.stroke();
-
-        // Símbolo de casamento (||)
-        const mx = (n.x + c.x) / 2, my = (n.y + c.y) / 2;
+        ctx.strokeStyle = COR.casamento; ctx.lineWidth = 2;
+        ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+        // Duplo traço central (símbolo de casamento)
+        const mx = (x1 + x2) / 2;
         ctx.beginPath();
-        ctx.moveTo(mx - 4, my - 6); ctx.lineTo(mx - 4, my + 6);
-        ctx.moveTo(mx + 4, my - 6); ctx.lineTo(mx + 4, my + 6);
-        ctx.strokeStyle = isDark ? '#facc15' : '#ca8a04';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+        ctx.moveTo(mx - 4, y - 7); ctx.lineTo(mx - 4, y + 7);
+        ctx.moveTo(mx + 4, y - 7); ctx.lineTo(mx + 4, y + 7);
+        ctx.lineWidth = 2.5; ctx.stroke();
       });
     });
 
-    // 2. Desenhar linhas filho → pais
+    // ── 3. Linhas pais → filhos (ortogonais com barra de irmãos) ──
+    const familias = new Map();
     this.nodes.forEach(n => {
       const pai = n.pessoa.pai ? nodeMap[n.pessoa.pai] : null;
       const mae = n.pessoa.mae ? nodeMap[n.pessoa.mae] : null;
-
-      if (pai || mae) {
-        ctx.beginPath();
-        ctx.strokeStyle = corLinha;
-        ctx.lineWidth = 1.5;
-        // Ponto de origem entre pais
-        let origemX = n.x;
-        if (pai && mae) origemX = (pai.x + mae.x) / 2;
-        else if (pai) origemX = pai.x;
-        else origemX = mae.x;
-        const origemY = (pai || mae).y + this.SIZE + 4;
-
-        ctx.moveTo(origemX, origemY);
-        ctx.lineTo(origemX, n.y - this.SIZE - 4);
-        ctx.lineTo(n.x, n.y - this.SIZE - 4);
-        ctx.lineTo(n.x, n.y - this.SIZE);
-        ctx.stroke();
-      }
+      if (!pai && !mae) return;
+      const key = `${n.pessoa.pai||''}_${n.pessoa.mae||''}`;
+      if (!familias.has(key)) familias.set(key, { pai, mae, filhos: [] });
+      familias.get(key).filhos.push(n);
     });
 
-    // 3. Desenhar símbolos
+    familias.forEach(({ pai, mae, filhos }) => {
+      let origemX;
+      if (pai && mae) origemX = (pai.x + mae.x) / 2;
+      else origemX = (pai || mae).x;
+
+      const origemY = (pai || mae).y + S / 2 + 3;
+      const barY    = filhos[0].y - S / 2 - 20; // barra de irmãos
+
+      ctx.beginPath();
+      ctx.strokeStyle = COR.linha; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+
+      if (filhos.length === 1) {
+        // Filho único: linha em L
+        const fx = filhos[0].x, fy = filhos[0].y - S / 2 - 2;
+        ctx.moveTo(origemX, origemY);
+        ctx.lineTo(origemX, barY);
+        ctx.lineTo(fx, barY);
+        ctx.lineTo(fx, fy);
+      } else {
+        // Vários filhos: drop + barra horizontal + ramos
+        const xs = filhos.map(f => f.x);
+        const xEsq = Math.min(origemX, ...xs);
+        const xDir = Math.max(origemX, ...xs);
+        ctx.moveTo(origemX, origemY);
+        ctx.lineTo(origemX, barY);
+        ctx.moveTo(xEsq, barY); ctx.lineTo(xDir, barY);
+        filhos.forEach(f => {
+          ctx.moveTo(f.x, barY);
+          ctx.lineTo(f.x, f.y - S / 2 - 2);
+        });
+      }
+      ctx.stroke();
+    });
+
+    // ── 4. Símbolos genéticos ──
     this.nodes.forEach(n => {
       const { x, y, pessoa } = n;
-      const s = this.SIZE;
       ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.15)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
 
-      // Sombra suave
-      ctx.shadowColor = 'rgba(0,0,0,0.18)';
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetY = 2;
+      let corBorda = dark ? '#94a3b8' : '#475569';
+      let corPreench = COR.fundo;
+      if (pessoa.afetado)  { corBorda = COR.afetado;  corPreench = COR.afetado; }
+      else if (pessoa.portador) { corBorda = COR.portador; }
 
-      ctx.lineWidth = 2.5;
-
-      let corBorda = isDark ? '#94a3b8' : '#475569';
-      let corPreench = corFundo;
-
-      if (pessoa.afetado) { corBorda = corAfetado; corPreench = corAfetado; }
-      else if (pessoa.portador) { corBorda = corPortador; }
-
-      ctx.strokeStyle = corBorda;
-      ctx.fillStyle = corPreench;
+      ctx.strokeStyle = corBorda; ctx.fillStyle = corPreench; ctx.lineWidth = 2;
 
       if (pessoa.sexo === 'M') {
-        // Quadrado
-        ctx.beginPath();
-        ctx.rect(x - s / 2, y - s / 2, s, s);
-        ctx.fill();
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.rect(x - S/2, y - S/2, S, S); ctx.fill(); ctx.stroke();
         if (pessoa.portador) {
-          // Meio preenchido (triângulo inferior)
-          ctx.fillStyle = corPortador;
-          ctx.beginPath();
-          ctx.moveTo(x - s / 2, y + s / 2);
-          ctx.lineTo(x + s / 2, y + s / 2);
-          ctx.lineTo(x, y);
-          ctx.closePath();
-          ctx.fill();
+          ctx.fillStyle = COR.portador; ctx.beginPath();
+          ctx.moveTo(x - S/2, y + S/2); ctx.lineTo(x + S/2, y + S/2); ctx.lineTo(x, y);
+          ctx.closePath(); ctx.fill();
         }
       } else if (pessoa.sexo === 'F') {
-        // Círculo
-        ctx.beginPath();
-        ctx.arc(x, y, s / 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.arc(x, y, S/2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         if (pessoa.portador) {
-          ctx.fillStyle = corPortador;
-          ctx.beginPath();
-          ctx.arc(x, y, s / 2, 0, Math.PI);
-          ctx.closePath();
-          ctx.fill();
+          ctx.fillStyle = COR.portador; ctx.beginPath();
+          ctx.arc(x, y, S/2, 0, Math.PI); ctx.closePath(); ctx.fill();
         }
       } else {
-        // Losango (sexo desconhecido)
         ctx.beginPath();
-        ctx.moveTo(x, y - s / 2);
-        ctx.lineTo(x + s / 2, y);
-        ctx.lineTo(x, y + s / 2);
-        ctx.lineTo(x - s / 2, y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
+        ctx.moveTo(x, y - S/2); ctx.lineTo(x + S/2, y);
+        ctx.lineTo(x, y + S/2); ctx.lineTo(x - S/2, y);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
       }
 
       ctx.shadowColor = 'transparent';
 
-      // Traço diagonal se falecido
-      if (!pessoa.vivo) {
-        ctx.strokeStyle = isDark ? '#f87171' : '#b91c1c';
-        ctx.lineWidth = 2;
+      // Traço diagonal = falecido
+      if (pessoa.vivo === false) {
+        ctx.strokeStyle = dark ? '#f87171' : '#b91c1c'; ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(x - s / 2 - 5, y + s / 2 + 5);
-        ctx.lineTo(x + s / 2 + 5, y - s / 2 - 5);
+        ctx.moveTo(x - S/2 - 4, y + S/2 + 4);
+        ctx.lineTo(x + S/2 + 4, y - S/2 - 4);
         ctx.stroke();
       }
 
-      // Nome abaixo
-      ctx.fillStyle = corTexto;
-      ctx.font = `bold ${Math.max(9, 11 * this.scale > 1 ? 11 : 9)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(pessoa.nome, x, y + s / 2 + 14);
+      // Nome
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = COR.texto; ctx.font = `bold 10px system-ui`;
+      ctx.fillText(pessoa.nome || '?', x, y + S/2 + 5);
       if (pessoa.sobrenome) {
-        ctx.font = `${Math.max(8, 9 * this.scale > 1 ? 9 : 8)}px system-ui, sans-serif`;
-        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-        ctx.fillText(pessoa.sobrenome, x, y + s / 2 + 25);
+        ctx.font = `9px system-ui`; ctx.fillStyle = COR.sub;
+        ctx.fillText(pessoa.sobrenome, x, y + S/2 + 17);
       }
 
       ctx.restore();
     });
 
     ctx.restore();
-
-    if (!this.nodes.length) {
-      ctx.fillStyle = isDark ? '#64748b' : '#94a3b8';
-      ctx.font = '16px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText('Nenhum dado para exibir. Cadastre pessoas primeiro.', this.canvas.width / 2, this.canvas.height / 2);
-    }
   },
 
   exportarPNG() {
-    const link = document.createElement('a');
-    link.download = 'heredograma.png';
-    link.href = this.canvas.toDataURL('image/png');
-    link.click();
+    const a = document.createElement('a');
+    a.download = 'heredograma.png';
+    a.href = this.canvas.toDataURL('image/png');
+    a.click();
   }
 };
