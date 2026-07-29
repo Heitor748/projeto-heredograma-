@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Heredograma — Árvore Genealógica</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -66,6 +67,13 @@
       <div class="page-header">
         <h2>Dashboard</h2>
         <p>Visão geral da sua árvore genealógica</p>
+      </div>
+
+      <div class="dash-acoes-rapidas">
+        <button class="btn btn-primario" onclick="UI.navegarPara('cadastro')">+ Nova Pessoa</button>
+        <button class="btn btn-secundario" onclick="UI.navegarPara('heredograma')">Ver Heredograma</button>
+        <button class="btn btn-secundario" onclick="UI.navegarPara('arvore')">Ver Árvore</button>
+        <button class="btn btn-outline" id="btn-carregar-exemplo">Carregar Exemplo</button>
       </div>
 
       <div class="dash-cards">
@@ -168,12 +176,6 @@
         </div>
       </div>
 
-      <div class="dash-acoes-rapidas">
-        <button class="btn btn-primario" onclick="UI.navegarPara('cadastro')">+ Nova Pessoa</button>
-        <button class="btn btn-secundario" onclick="UI.navegarPara('heredograma')">Ver Heredograma</button>
-        <button class="btn btn-secundario" onclick="UI.navegarPara('arvore')">Ver Árvore</button>
-        <button class="btn btn-outline" id="btn-carregar-exemplo">Carregar Exemplo</button>
-      </div>
     </section>
 
     <!-- CADASTRO -->

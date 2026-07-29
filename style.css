@@ -306,6 +306,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-bottom: 24px;
 }
 
 /* ===== CADASTRO REDESENHADO ===== */
@@ -1380,6 +1381,13 @@ body {
   #btn-menu-mobile { display: block; }
   .secao { padding: 16px; }
   .dash-cards { grid-template-columns: repeat(2, 1fr); }
+  .dash-acoes-rapidas { margin-bottom: 16px; }
+  .dash-acoes-rapidas .btn { flex: 1 1 calc(50% - 5px); text-align: center; }
   .chat-container { height: calc(100vh - 200px); }
   .legenda-grid { grid-template-columns: 1fr; }
+  .canvas-container { min-height: 260px; }
+  .secao:has(#canvas-arvore),
+  .secao:has(#canvas-heredograma) {
+    height: calc(100vh - 56px);
+  }
 }

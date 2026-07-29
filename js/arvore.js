@@ -21,8 +21,9 @@ const Arvore = {
   resize() {
     if (!this.canvas) return;
     const c = this.canvas.parentElement;
-    this.canvas.width  = c.clientWidth  || window.innerWidth - 240;
-    this.canvas.height = c.clientHeight || 520;
+    const sidebarW = window.innerWidth > 680 ? 240 : 0;
+    this.canvas.width  = c.clientWidth  || window.innerWidth - sidebarW;
+    this.canvas.height = c.clientHeight || Math.max(window.innerHeight - 200, 280);
   },
 
   bindEventos() {
