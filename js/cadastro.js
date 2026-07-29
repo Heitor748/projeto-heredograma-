@@ -26,6 +26,14 @@ const Cadastro = {
     document.getElementById('pesquisa-cadastro').addEventListener('input', e => {
       this.renderizarLista(e.target.value);
     });
+
+    // Atualiza selects ao clicar neles para garantir dados frescos
+    ['pai-select', 'mae-select', 'conjuges-select', 'filhos-select'].forEach(id => {
+      document.getElementById(id)?.addEventListener('focus', () => {
+        const idEditando = this.pessoaEditando?.id || null;
+        this.atualizarSelects(idEditando);
+      });
+    });
   },
 
   getPessoaDoForm() {
@@ -153,21 +161,23 @@ const Cadastro = {
   },
 
   atualizarSelects(excluirId = null) {
-    const pessoas = Storage.getAll();
+    const pessoas = Storage.getAll().filter(p => p.id !== excluirId);
     const opcoes = pessoas
-      .filter(p => p.id !== excluirId)
-      .map(p => `<option value="${p.id}">${p.nome} ${p.sobrenome}</option>`)
+      .map(p => `<option value="${p.id}">${p.nome} ${p.sobrenome || ''}</option>`)
       .join('');
     const vazio = '<option value="">-- Nenhum --</option>';
+    const semPessoas = '<option value="" disabled>Cadastre outras pessoas primeiro</option>';
 
     ['pai-select', 'mae-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = vazio + opcoes;
+      if (!el) return;
+      el.innerHTML = pessoas.length ? vazio + opcoes : vazio + semPessoas;
     });
 
     ['filhos-select', 'conjuges-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = opcoes;
+      if (!el) return;
+      el.innerHTML = pessoas.length ? opcoes : semPessoas;
     });
   },
 
