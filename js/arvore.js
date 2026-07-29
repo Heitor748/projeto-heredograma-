@@ -26,7 +26,7 @@ const Arvore = {
 
   resize() {
     const container = this.canvas.parentElement;
-    this.canvas.width = container.clientWidth;
+    this.canvas.width = container.clientWidth || window.innerWidth - 240;
     this.canvas.height = container.clientHeight || 520;
   },
 

@@ -30,8 +30,8 @@ const UI = {
     const el = document.getElementById('secao-' + secao);
     if (el) el.classList.remove('hidden');
     document.querySelectorAll(`[data-secao="${secao}"]`).forEach(b => b.classList.add('ativo'));
-    if (secao === 'heredograma') setTimeout(() => Heredograma.renderizar(), 50);
-    if (secao === 'arvore') setTimeout(() => Arvore.renderizar(), 50);
+    if (secao === 'heredograma') setTimeout(() => { Heredograma.resize(); Heredograma.renderizar(); }, 50);
+    if (secao === 'arvore') setTimeout(() => { Arvore.resize(); Arvore.renderizar(); }, 50);
     if (secao === 'cadastro') { Cadastro.atualizarSelects(); Cadastro.renderizarLista(); }
   },
 
