@@ -352,18 +352,28 @@
     <section id="secao-ia" class="secao hidden">
       <div class="page-header">
         <h2>Assistente IA</h2>
-        <p>Faça perguntas sobre a árvore genealógica usando Inteligência Artificial</p>
+        <p>Faça perguntas ou descreva uma família para gerar a árvore automaticamente</p>
       </div>
+
+      <!-- Botões de modo -->
+      <div class="chat-modos">
+        <button id="btn-modo-chat" class="btn btn-outline ativo">💬 Perguntas</button>
+        <button id="btn-gerar-familia" class="btn btn-outline">🧬 Gerar Família</button>
+      </div>
+
+      <div id="chat-dica" class="chat-dica">💬 Modo Chat: faça perguntas sobre a família cadastrada.</div>
 
       <div class="chat-container">
         <div id="chat-mensagens" class="chat-mensagens">
           <p class="chat-bem-vindo">
-            🤖 Olá! Sou seu assistente de genealogia.<br>
-            Posso responder perguntas como:<br>
+            🤖 Olá! Sou seu assistente de genealogia.<br><br>
+            <strong>💬 Modo Perguntas:</strong><br>
             <em>"Quem é o avô de Lucas?"</em><br>
             <em>"Quantas gerações existem?"</em><br>
-            <em>"Quem é afetado pela condição?"</em><br><br>
-            Configure sua chave de API Groq nas <strong>Configurações</strong> para começar.
+            <em>"Quem é portador da condição?"</em><br><br>
+            <strong>🧬 Modo Gerar Família:</strong><br>
+            <em>"João e Maria são casados e têm dois filhos: Carlos (afetado) e Ana. Carlos casou com Lucia e têm Lucas e Julia (portadora)."</em><br><br>
+            Configure sua chave Groq em <strong>Configurações</strong> para começar.
           </p>
         </div>
         <form id="form-chat" class="chat-form">

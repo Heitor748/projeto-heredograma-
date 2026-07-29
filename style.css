@@ -592,6 +592,26 @@ body {
 .resultado-item small { color: var(--text2); font-size: 13px; }
 
 /* ===== CHAT / IA ===== */
+.chat-modos {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.chat-modos .btn.ativo {
+  background: var(--primario);
+  color: #fff;
+  border-color: var(--primario);
+}
+.chat-dica {
+  font-size: 13px;
+  color: var(--text2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+}
+
 .chat-container {
   display: flex;
   flex-direction: column;
