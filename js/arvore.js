@@ -22,8 +22,16 @@ const Arvore = {
     if (!this.canvas) return;
     const c = this.canvas.parentElement;
     const sidebarW = window.innerWidth > 680 ? 240 : 0;
-    this.canvas.width  = c.clientWidth  || window.innerWidth - sidebarW;
-    this.canvas.height = c.clientHeight || Math.max(window.innerHeight - 200, 280);
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = c.clientWidth  || window.innerWidth - sidebarW;
+    const cssH = c.clientHeight || Math.max(window.innerHeight - 200, 280);
+    this._dpr  = dpr;
+    this._cssW = cssW;
+    this._cssH = cssH;
+    this.canvas.width  = Math.round(cssW * dpr);
+    this.canvas.height = Math.round(cssH * dpr);
+    this.canvas.style.width  = cssW + 'px';
+    this.canvas.style.height = cssH + 'px';
   },
 
   bindEventos() {
@@ -201,8 +209,10 @@ const Arvore = {
 
   centralizar() {
     if (!this.canvas) return;
+    const cssW = this._cssW || this.canvas.width;
+    const cssH = this._cssH || this.canvas.height;
     if (!this.nodes.length) {
-      this.offsetX = this.canvas.width / 2; this.offsetY = 60; this.scale = 1;
+      this.offsetX = cssW / 2; this.offsetY = 60; this.scale = 1;
       this.desenhar(); return;
     }
     const xs = this.nodes.map(n => n.x), ys = this.nodes.map(n => n.y);
@@ -210,22 +220,26 @@ const Arvore = {
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     const larg = Math.max(...xs) - Math.min(...xs) + this.FAMILY_GAP + this.W;
     const alt  = Math.max(...ys) - Math.min(...ys) + this.VGAP + this.H;
-    this.scale = Math.min(this.canvas.width / (larg + 80), this.canvas.height / (alt + 80), 1.3);
-    this.offsetX = this.canvas.width  / 2 - cx * this.scale;
-    this.offsetY = this.canvas.height / 2 - cy * this.scale;
+    this.scale = Math.min(cssW / (larg + 80), cssH / (alt + 80), 1.3);
+    this.offsetX = cssW / 2 - cx * this.scale;
+    this.offsetY = cssH / 2 - cy * this.scale;
     this.desenhar();
   },
 
   desenhar() {
     if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
+    const dpr  = this._dpr  || window.devicePixelRatio || 1;
+    const cssW = this._cssW || this.canvas.width / dpr;
+    const cssH = this._cssH || this.canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const dark = document.documentElement.getAttribute('data-tema') === 'escuro';
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.clearRect(0, 0, cssW, cssH);
 
     if (!this.nodes.length) {
       ctx.fillStyle = dark ? '#475569' : '#94a3b8';
       ctx.font = '15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('Cadastre pessoas para visualizar a árvore.', this.canvas.width / 2, this.canvas.height / 2);
+      ctx.fillText('Cadastre pessoas para visualizar a árvore.', cssW / 2, cssH / 2);
       return;
     }
 
