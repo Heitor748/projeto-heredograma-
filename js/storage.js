@@ -1,6 +1,8 @@
 const Storage = {
   KEY: 'heredograma_pessoas',
   CONFIG_KEY: 'heredograma_config',
+  HISTORICO_KEY: 'heredograma_historico',
+  MAX_HISTORICO: 15,
 
   getAll() {
     try {
@@ -8,7 +10,17 @@ const Storage = {
     } catch { return []; }
   },
 
-  save(pessoas) {
+  // Salva dados e empurra snapshot para o histórico de desfazer
+  save(pessoas, { silencioso = false } = {}) {
+    if (!silencioso) {
+      const atual = this.getAll();
+      if (atual.length > 0) {
+        const hist = this.getHistorico();
+        hist.push({ ts: Date.now(), pessoas: atual });
+        if (hist.length > this.MAX_HISTORICO) hist.shift();
+        localStorage.setItem(this.HISTORICO_KEY, JSON.stringify(hist));
+      }
+    }
     localStorage.setItem(this.KEY, JSON.stringify(pessoas));
   },
 
@@ -43,7 +55,30 @@ const Storage = {
     this.save(lista);
   },
 
-  // Vincula cônjuge bidirecionalmente
+  // ===== HISTÓRICO / DESFAZER =====
+
+  getHistorico() {
+    try {
+      return JSON.parse(localStorage.getItem(this.HISTORICO_KEY) || '[]');
+    } catch { return []; }
+  },
+
+  desfazer() {
+    const hist = this.getHistorico();
+    if (!hist.length) return null;
+    const snapshot = hist.pop();
+    localStorage.setItem(this.HISTORICO_KEY, JSON.stringify(hist));
+    // Salva o snapshot sem criar novo snapshot (silencioso)
+    localStorage.setItem(this.KEY, JSON.stringify(snapshot.pessoas));
+    return snapshot;
+  },
+
+  qtdHistorico() {
+    return this.getHistorico().length;
+  },
+
+  // ===== RELACIONAMENTOS =====
+
   vincularConjuge(idA, idB) {
     const lista = this.getAll();
     lista.forEach(p => {
@@ -57,7 +92,6 @@ const Storage = {
     this.save(lista);
   },
 
-  // Vincula filho bidirecionalmente (filho recebe pai/mãe, pai/mãe recebe filho)
   vincularFilho(idPaiOuMae, idFilho, sexoPaiMae) {
     const lista = this.getAll();
     lista.forEach(p => {
@@ -75,6 +109,8 @@ const Storage = {
     });
     this.save(lista);
   },
+
+  // ===== IMPORT / EXPORT =====
 
   exportJSON() {
     const data = { pessoas: this.getAll(), exportadoEm: new Date().toISOString() };

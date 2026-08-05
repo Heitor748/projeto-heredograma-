@@ -140,6 +140,7 @@ const Cadastro = {
     this.atualizarSelects();
     this.renderizarLista();
     UI.atualizarDashboard();
+    UI.atualizarBotaoDesfazer();
   },
 
   editar(id) {
@@ -234,13 +235,17 @@ const Cadastro = {
   excluir(id) {
     const pessoa = Storage.getById(id);
     if (!pessoa) return;
-    if (!confirm(`Excluir "${pessoa.nome} ${pessoa.sobrenome || ''}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir "${pessoa.nome} ${pessoa.sobrenome || ''}"?\n\nVocê poderá desfazer esta ação clicando em "Desfazer" na notificação que aparecerá.`)) return;
     Storage.delete(id);
     this.limpar();
     this.atualizarSelects();
     this.renderizarLista();
     UI.atualizarDashboard();
-    UI.toast('Pessoa excluída.', 'info');
+    UI.atualizarBotaoDesfazer();
+    UI.toast(`"${pessoa.nome}" excluído(a).`, 'info', {
+      acao: () => { UI.desfazer(); },
+      labelAcao: '↩ Desfazer'
+    });
   },
 
   limpar() {

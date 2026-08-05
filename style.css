@@ -163,7 +163,7 @@ body {
   color: var(--text);
   padding: 4px 8px;
 }
-#btn-tema {
+#btn-tema, #btn-desfazer {
   background: none;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -171,8 +171,10 @@ body {
   cursor: pointer;
   padding: 4px 10px;
   transition: background 0.2s;
+  color: var(--text);
 }
-#btn-tema:hover { background: var(--bg); }
+#btn-tema:hover, #btn-desfazer:hover:not(:disabled) { background: var(--bg); }
+#btn-desfazer:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ===== SEÇÕES ===== */
 .secao {
@@ -1152,6 +1154,19 @@ body {
 .toast-sucesso { background: #16a34a; }
 .toast-erro { background: var(--perigo); }
 .toast-info { background: var(--secundario); }
+.toast-acao {
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.toast-acao:hover { background: rgba(255,255,255,0.4); }
 
 /* ===== MODAL SELETOR DE RELAÇÃO ===== */
 .modal-seletor-overlay {

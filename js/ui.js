@@ -7,8 +7,42 @@ const UI = {
     this.bindImportExport();
     this.bindPesquisa();
     this.bindModal();
+    this.bindDesfazer();
     this.atualizarDashboard();
     this.aplicarTema();
+  },
+
+  bindDesfazer() {
+    // Ctrl+Z / Cmd+Z
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        this.desfazer();
+      }
+    });
+    document.getElementById('btn-desfazer')?.addEventListener('click', () => this.desfazer());
+  },
+
+  desfazer() {
+    const snap = Storage.desfazer();
+    if (!snap) { this.toast('Nada para desfazer.', 'info'); return; }
+    const d = new Date(snap.ts);
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    Cadastro.atualizarSelects();
+    Cadastro.renderizarLista();
+    this.atualizarDashboard();
+    this.atualizarBotaoDesfazer();
+    this.toast(`Restaurado para versão das ${hora} (${snap.pessoas.length} pessoas).`, 'sucesso');
+  },
+
+  atualizarBotaoDesfazer() {
+    const btn = document.getElementById('btn-desfazer');
+    if (!btn) return;
+    const qtd = Storage.qtdHistorico();
+    btn.disabled = qtd === 0;
+    btn.title = qtd > 0 ? `Desfazer (${qtd} versões salvas)` : 'Nada para desfazer';
   },
 
   bindMenu() {
@@ -491,14 +525,26 @@ const UI = {
     this.verPerfil(idReferencia);
   },
 
-  toast(msg, tipo = 'info') {
+  toast(msg, tipo = 'info', { acao, labelAcao } = {}) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const t = document.createElement('div');
     t.className = `toast toast-${tipo}`;
-    t.textContent = msg;
+    if (acao) {
+      const span = document.createElement('span');
+      span.textContent = msg + ' ';
+      const btn = document.createElement('button');
+      btn.className = 'toast-acao';
+      btn.textContent = labelAcao || 'Desfazer';
+      btn.addEventListener('click', () => { acao(); t.remove(); });
+      t.appendChild(span);
+      t.appendChild(btn);
+    } else {
+      t.textContent = msg;
+    }
     container.appendChild(t);
     setTimeout(() => t.classList.add('visivel'), 10);
-    setTimeout(() => { t.classList.remove('visivel'); setTimeout(() => t.remove(), 400); }, 3500);
+    const timer = setTimeout(() => { t.classList.remove('visivel'); setTimeout(() => t.remove(), 400); }, 5000);
+    t.addEventListener('click', e => { if (e.target !== t) return; clearTimeout(timer); t.classList.remove('visivel'); setTimeout(() => t.remove(), 400); });
   }
 };
