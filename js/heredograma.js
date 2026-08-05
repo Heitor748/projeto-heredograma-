@@ -167,6 +167,26 @@ const Heredograma = {
         else unidades.push([p]);
       });
 
+      // Ordenar unidades pela posição X média dos pais para manter
+      // coerência visual (filhos ficam sob seus próprios pais)
+      if (g > 0) {
+        const centroParentX = u => {
+          const xs = [];
+          u.forEach(p => {
+            if (p.pai && xPos[p.pai] !== undefined) xs.push(xPos[p.pai]);
+            if (p.mae && xPos[p.mae] !== undefined) xs.push(xPos[p.mae]);
+          });
+          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+        };
+        unidades.sort((ua, ub) => {
+          const xa = centroParentX(ua), xb = centroParentX(ub);
+          if (xa === null && xb === null) return 0;
+          if (xa === null) return 1;
+          if (xb === null) return -1;
+          return xa - xb;
+        });
+      }
+
       // Calcular posições relativas
       let x = 0;
       const local = {};
