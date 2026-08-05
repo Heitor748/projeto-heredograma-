@@ -410,40 +410,13 @@ const Heredograma = {
 
   imprimir() {
     const dataUrl = this._canvasComFundo().toDataURL('image/png');
-    const legenda = [
-      ['□', 'Masculino'], ['○', 'Feminino'], ['◇', 'Sexo indef.'],
-      ['■', 'Afetado'], ['◑', 'Portador'], ['⊠', 'Falecido']
-    ].map(([s, l]) => `<span style="margin-right:16px"><b>${s}</b> ${l}</span>`).join('');
-
+    const itensLegenda = [
+      ['□','Masculino'],['○','Feminino'],['◇','Sexo indef.'],
+      ['■','Afetado'],['◑','Portador'],['⊠','Falecido']
+    ];
     const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Heredograma</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#fff;font-family:system-ui,sans-serif;color:#1e293b;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px}
-    h1{font-size:20px;font-weight:700}
-    img{max-width:100%;height:auto;border:1px solid #e2e8f0;border-radius:6px}
-    .legenda{font-size:13px;color:#475569;text-align:center;flex-wrap:wrap;display:flex;justify-content:center;gap:4px}
-    .acoes{display:flex;gap:10px}
-    button{padding:8px 22px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:500}
-    .btn-print{background:#3b82f6;color:#fff}
-    .btn-close{background:#f1f5f9;color:#1e293b;border:1px solid #e2e8f0}
-    @media print{.acoes{display:none}body{padding:0}img{border:none;max-width:100%;max-height:95vh;object-fit:contain}}
-  </style>
-</head>
-<body>
-  <h1>🧬 Heredograma</h1>
-  <img src="${dataUrl}" alt="Heredograma">
-  <div class="legenda">${legenda}</div>
-  <div class="acoes">
-    <button class="btn-print" onclick="window.print()">Imprimir</button>
-    <button class="btn-close" onclick="window.close()">Fechar</button>
-  </div>
-</body>
-</html>`);
+    if (!win) { alert('Permita pop-ups para imprimir.'); return; }
+    win.document.write(_htmlImpressao('🧬 Heredograma', dataUrl, itensLegenda));
     win.document.close();
   }
 };
