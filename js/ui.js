@@ -64,6 +64,7 @@ const UI = {
     const el = document.getElementById('secao-' + secao);
     if (el) el.classList.remove('hidden');
     document.querySelectorAll(`[data-secao="${secao}"]`).forEach(b => b.classList.add('ativo'));
+    if (secao === 'dashboard') this.atualizarDashboard();
     if (secao === 'heredograma') setTimeout(() => { Heredograma.resize(); Heredograma.renderizar(); }, 50);
     if (secao === 'arvore') setTimeout(() => { Arvore.resize(); Arvore.renderizar(); }, 50);
     if (secao === 'cadastro') { Cadastro.atualizarSelects(); Cadastro.renderizarLista(); }
@@ -175,18 +176,27 @@ const UI = {
 
     const listaEl = document.getElementById('dash-recentes');
     if (listaEl) {
-      const recentes = [...pessoas].reverse().slice(0, 5);
+      const recentes = [...pessoas].reverse().slice(0, 8);
       listaEl.innerHTML = recentes.length
-        ? recentes.map(p => `
+        ? recentes.map(p => {
+            const corAv = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
+            const tags = [
+              p.vivo === false ? '<span class="dash-tag falecido">Falecido</span>' : '<span class="dash-tag vivo">Vivo</span>',
+              p.afetado  ? '<span class="dash-tag afetado">Afetado</span>'  : '',
+              p.portador ? '<span class="dash-tag portador">Portador</span>' : '',
+            ].filter(Boolean).join('');
+            return `
             <div class="dash-item" onclick="UI.verPerfil('${p.id}')">
-              <div class="dash-item-avatar ${p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef'}">
-                ${p.foto ? `<img src="${p.foto}">` : (p.nome || '?')[0].toUpperCase()}
+              <div class="dash-item-avatar ${corAv}">
+                ${p.foto ? `<img src="${p.foto}" alt="${p.nome}">` : `<span>${(p.nome || '?')[0].toUpperCase()}</span>`}
               </div>
-              <div>
+              <div class="dash-item-info">
                 <strong>${p.nome} ${p.sobrenome || ''}</strong>
-                <small>${!p.vivo ? 'Falecido' : 'Vivo'}${p.afetado ? ' · Afetado' : ''}${p.portador ? ' · Portador' : ''}</small>
+                <div class="dash-item-tags">${tags}</div>
               </div>
-            </div>`).join('')
+              <span class="dash-item-seta">›</span>
+            </div>`;
+          }).join('')
         : '<p class="lista-vazia">Nenhuma pessoa cadastrada.</p>';
     }
   },
