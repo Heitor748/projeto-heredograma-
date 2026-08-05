@@ -26,16 +26,14 @@ const Cadastro = {
     document.getElementById('pesquisa-cadastro').addEventListener('input', e => {
       this.renderizarLista(e.target.value);
     });
-    ['pai-select', 'mae-select', 'conjuges-select', 'filhos-select'].forEach(id => {
-      document.getElementById(id)?.addEventListener('focus', () => {
-        this.atualizarSelects(this.pessoaEditando?.id || null);
-      });
-    });
 
     // Mostrar/ocultar data de falecimento
     document.getElementById('falecido')?.addEventListener('change', e => {
       const grupo = document.getElementById('grupo-data-falecimento');
-      if (grupo) grupo.style.display = e.target.checked ? 'flex' : 'none';
+      if (grupo) {
+        grupo.classList.remove('hidden');
+        grupo.style.display = e.target.checked ? 'flex' : 'none';
+      }
     });
   },
 
@@ -76,8 +74,8 @@ const Cadastro = {
       portador: document.getElementById('portador')?.checked ?? false,
       pai: get('pai-select') || null,
       mae: get('mae-select') || null,
-      conjuges: conjugesSelecionados,
-      filhos: filhosSelecionados,
+      conjuges: this.pessoaEditando ? (this.pessoaEditando.conjuges || []) : conjugesSelecionados,
+      filhos:   this.pessoaEditando ? (this.pessoaEditando.filhos   || []) : filhosSelecionados,
       observacoes: get('observacoes'),
       foto: document.getElementById('foto-preview')?.src?.startsWith('data:')
         ? document.getElementById('foto-preview').src
@@ -179,7 +177,10 @@ const Cadastro = {
 
     // Mostrar/ocultar campo de data de falecimento
     const grupoFalecimento = document.getElementById('grupo-data-falecimento');
-    if (grupoFalecimento) grupoFalecimento.style.display = pessoa.vivo === false ? 'flex' : 'none';
+    if (grupoFalecimento) {
+      grupoFalecimento.classList.remove('hidden');
+      grupoFalecimento.style.display = pessoa.vivo === false ? 'flex' : 'none';
+    }
 
     // Multi-selects
     ['filhos-select', 'conjuges-select'].forEach(selId => {
@@ -190,10 +191,16 @@ const Cadastro = {
 
     // Foto
     const preview = document.getElementById('foto-preview');
-    if (pessoa.foto && preview) {
-      preview.src = pessoa.foto;
-      preview.classList.remove('hidden');
-      document.getElementById('foto-placeholder')?.classList.add('hidden');
+    if (preview) {
+      if (pessoa.foto) {
+        preview.src = pessoa.foto;
+        preview.classList.remove('hidden');
+        document.getElementById('foto-placeholder')?.classList.add('hidden');
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+        document.getElementById('foto-placeholder')?.classList.remove('hidden');
+      }
     }
 
     document.getElementById('btn-excluir').classList.remove('hidden');
@@ -241,6 +248,7 @@ const Cadastro = {
     document.getElementById('form-pessoa').reset();
     document.getElementById('sexo-hidden').value = '';
     document.querySelectorAll('.sexo-btn').forEach(b => b.classList.remove('ativo'));
+    document.querySelector('.sexo-btn[data-valor=""]')?.classList.add('ativo');
 
     const preview = document.getElementById('foto-preview');
     if (preview) { preview.src = ''; preview.classList.add('hidden'); }
@@ -252,7 +260,8 @@ const Cadastro = {
       fotoArea.classList.add('indef');
     }
 
-    document.getElementById('grupo-data-falecimento')?.classList.add('hidden');
+    const gdf = document.getElementById('grupo-data-falecimento');
+    if (gdf) { gdf.classList.remove('hidden'); gdf.style.display = 'none'; }
     document.getElementById('btn-excluir').classList.add('hidden');
     document.getElementById('btn-salvar').textContent = 'Salvar';
     document.getElementById('form-titulo').textContent = 'Nova Pessoa';
