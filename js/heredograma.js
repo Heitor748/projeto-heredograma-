@@ -390,15 +390,26 @@ const Heredograma = {
     ctx.restore();
   },
 
+  _canvasComFundo() {
+    const temp = document.createElement('canvas');
+    temp.width  = this.canvas.width;
+    temp.height = this.canvas.height;
+    const tCtx = temp.getContext('2d');
+    tCtx.fillStyle = '#ffffff';
+    tCtx.fillRect(0, 0, temp.width, temp.height);
+    tCtx.drawImage(this.canvas, 0, 0);
+    return temp;
+  },
+
   exportarPNG() {
     const a = document.createElement('a');
     a.download = 'heredograma.png';
-    a.href = this.canvas.toDataURL('image/png');
+    a.href = this._canvasComFundo().toDataURL('image/png');
     a.click();
   },
 
   imprimir() {
-    const dataUrl = this.canvas.toDataURL('image/png');
+    const dataUrl = this._canvasComFundo().toDataURL('image/png');
     const legenda = [
       ['□', 'Masculino'], ['○', 'Feminino'], ['◇', 'Sexo indef.'],
       ['■', 'Afetado'], ['◑', 'Portador'], ['⊠', 'Falecido']

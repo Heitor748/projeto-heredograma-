@@ -258,6 +258,10 @@ body {
 .dash-card-alerta { border-left: 3px solid var(--perigo); }
 .dash-card-aviso { border-left: 3px solid var(--aviso); }
 .dash-card-neutro { border-left: 3px solid var(--text3); }
+.dash-card-clicavel { cursor: pointer; }
+.dash-card-clicavel:hover { background: var(--primario); color: white; border-left-color: var(--primario); }
+.dash-card-clicavel:hover .dash-num,
+.dash-card-clicavel:hover small { color: white; }
 .dash-card-icone { font-size: 24px; }
 .dash-num { font-size: 28px; font-weight: 700; color: var(--text); display: block; }
 .dash-card-info small { color: var(--text2); font-size: 12px; }

@@ -418,15 +418,26 @@ const Arvore = {
     return t + '…';
   },
 
+  _canvasComFundo() {
+    const temp = document.createElement('canvas');
+    temp.width  = this.canvas.width;
+    temp.height = this.canvas.height;
+    const tCtx = temp.getContext('2d');
+    tCtx.fillStyle = '#ffffff';
+    tCtx.fillRect(0, 0, temp.width, temp.height);
+    tCtx.drawImage(this.canvas, 0, 0);
+    return temp;
+  },
+
   exportarPNG() {
     const a = document.createElement('a');
     a.download = 'arvore_genealogica.png';
-    a.href = this.canvas.toDataURL('image/png');
+    a.href = this._canvasComFundo().toDataURL('image/png');
     a.click();
   },
 
   imprimir() {
-    const dataUrl = this.canvas.toDataURL('image/png');
+    const dataUrl = this._canvasComFundo().toDataURL('image/png');
     const legenda = [
       ['■', 'Afetado'], ['□', 'Portador'], ['— ♥ —', 'Cônjuges']
     ].map(([s, l]) => `<span style="margin-right:16px"><b>${s}</b> ${l}</span>`).join('');
