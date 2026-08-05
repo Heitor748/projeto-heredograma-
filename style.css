@@ -163,6 +163,20 @@ body {
   padding: 6px 8px;
   line-height: 0;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+#sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 199;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+#sidebar-backdrop.ativo {
+  display: block;
+  opacity: 1;
 }
 #btn-tema, #btn-desfazer {
   background: none;
@@ -1408,11 +1422,15 @@ body {
   #sidebar {
     position: fixed;
     left: 0; top: 0;
+    height: 100vh;
+    z-index: 200;
     transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
     box-shadow: 4px 0 20px rgba(0,0,0,0.3);
   }
   #sidebar.aberto { transform: translateX(0); }
-  #btn-menu-mobile { display: block; }
+  #btn-menu-mobile { display: flex; align-items: center; justify-content: center; }
   .secao { padding: 16px; }
   .dash-cards { grid-template-columns: repeat(2, 1fr); }
   .dash-acoes-rapidas { margin-bottom: 16px; }

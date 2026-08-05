@@ -45,16 +45,29 @@ const UI = {
     btn.title = qtd > 0 ? `Desfazer (${qtd} versões salvas)` : 'Nada para desfazer';
   },
 
+  _fecharSidebar() {
+    document.getElementById('sidebar').classList.remove('aberto');
+    document.getElementById('sidebar-backdrop').classList.remove('ativo');
+  },
+
   bindMenu() {
+    const backdrop = document.getElementById('sidebar-backdrop');
+
     document.querySelectorAll('[data-secao]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.navegarPara(btn.dataset.secao);
-        document.getElementById('sidebar').classList.remove('aberto');
+        this._fecharSidebar();
       });
     });
+
     document.getElementById('btn-menu-mobile')?.addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('aberto');
+      const sidebar = document.getElementById('sidebar');
+      const abrindo = !sidebar.classList.contains('aberto');
+      sidebar.classList.toggle('aberto', abrindo);
+      backdrop.classList.toggle('ativo', abrindo);
     });
+
+    backdrop?.addEventListener('click', () => this._fecharSidebar());
   },
 
   navegarPara(secao) {
