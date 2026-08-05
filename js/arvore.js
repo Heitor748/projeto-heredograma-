@@ -171,23 +171,29 @@ const Arvore = {
         else unidades.push([p]);
       });
 
-      // Ordenar unidades pela posição X média dos pais para manter
-      // coerência visual (filhos ficam sob seus próprios pais)
+      // Ordenar unidades pela posição X dos pais para manter coerência visual.
+      // Usa o centro dos pais do PRIMEIRO membro como chave principal.
+      // Desempate: solteiros antes de casais (evita o caso em que o cônjuge
+      // sem pais faz o casal empatar com um irmão solo, deixando-o do lado errado).
       if (g > 0) {
-        const centroParentX = u => {
+        const parentXDe = p => {
           const xs = [];
-          u.forEach(p => {
-            if (p.pai && xPos[p.pai] !== undefined) xs.push(xPos[p.pai]);
-            if (p.mae && xPos[p.mae] !== undefined) xs.push(xPos[p.mae]);
-          });
+          if (p.pai && xPos[p.pai] !== undefined) xs.push(xPos[p.pai]);
+          if (p.mae && xPos[p.mae] !== undefined) xs.push(xPos[p.mae]);
           return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
         };
+        const chaveUnidade = u => {
+          // Chave = centro dos pais do primeiro membro (quem tem pais mais à esquerda)
+          for (const p of u) { const x = parentXDe(p); if (x !== null) return x; }
+          return null;
+        };
         unidades.sort((ua, ub) => {
-          const xa = centroParentX(ua), xb = centroParentX(ub);
-          if (xa === null && xb === null) return 0;
+          const xa = chaveUnidade(ua), xb = chaveUnidade(ub);
+          if (xa === null && xb === null) return ua.length - ub.length;
           if (xa === null) return 1;
           if (xb === null) return -1;
-          return xa - xb;
+          if (xa !== xb) return xa - xb;
+          return ua.length - ub.length; // desempate: solteiro (1) antes de casal (2)
         });
       }
 
