@@ -158,10 +158,11 @@ body {
   display: none;
   background: none;
   border: none;
-  font-size: 22px;
   cursor: pointer;
   color: var(--text);
-  padding: 4px 8px;
+  padding: 6px 8px;
+  line-height: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 #btn-tema, #btn-desfazer {
   background: none;
