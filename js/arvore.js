@@ -161,8 +161,9 @@ const Arvore = {
       const usados = new Set();
       const unidades = [];
 
-      membros.forEach(p => {
-        if (usados.has(p.id)) return;
+      // Forma a unidade (pessoa [+ cônjuge]) sem nunca misturar a família
+      // do cônjuge na conta — cada pessoa fica sempre ligada à SUA família real.
+      const formarUnidade = p => {
         usados.add(p.id);
         const conj = (p.conjuges || [])
           .map(cid => byId[cid])
@@ -170,33 +171,38 @@ const Arvore = {
         if (conj) {
           usados.add(conj.id);
           // Convenção: homem (quadrado) à esquerda, mulher (círculo) à direita
-          const par = (p.sexo === 'F' && conj.sexo !== 'F') ? [conj, p] : [p, conj];
-          unidades.push(par);
-        } else unidades.push([p]);
-      });
+          return (p.sexo === 'F' && conj.sexo !== 'F') ? [conj, p] : [p, conj];
+        }
+        return [p];
+      };
 
-      // Ordenar unidades pela posição X média dos pais (todos os membros com pais).
-      // Casais de famílias diferentes ficam no centro entre as duas famílias.
-      // Tiebreaker: solteiro (len=1) antes de casal (len=2) quando a chave empata.
-      if (g > 0) {
-        const parentXDe = p => {
+      if (g === 0) {
+        membros.forEach(p => { if (!usados.has(p.id)) unidades.push(formarUnidade(p)); });
+      } else {
+        // Agrupar por família real (pai_mae). A posição de cada pessoa é
+        // ancorada SEMPRE na sua própria família — nunca na média com a
+        // família do cônjuge, que jogava a pessoa para o lado errado quando
+        // o cônjuge também tinha pai/mãe cadastrados em outra família.
+        const familiaMap = new Map();
+        membros.forEach(p => {
+          const key = (p.pai || '') + '_' + (p.mae || '');
+          if (!familiaMap.has(key)) familiaMap.set(key, { pai: p.pai, mae: p.mae, membros: [] });
+          familiaMap.get(key).membros.push(p);
+        });
+        const familias = Array.from(familiaMap.values()).map(f => {
           const xs = [];
-          if (p.pai && xPos[p.pai] !== undefined) xs.push(xPos[p.pai]);
-          if (p.mae && xPos[p.mae] !== undefined) xs.push(xPos[p.mae]);
-          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
-        };
-        const chaveUnidade = u => {
-          const xs = [];
-          u.forEach(p => { const x = parentXDe(p); if (x !== null) xs.push(x); });
-          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
-        };
-        unidades.sort((ua, ub) => {
-          const xa = chaveUnidade(ua), xb = chaveUnidade(ub);
-          if (xa === null && xb === null) return ua.length - ub.length;
-          if (xa === null) return 1;
-          if (xb === null) return -1;
-          if (Math.abs(xa - xb) > 0.001) return xa - xb;
-          return ua.length - ub.length;
+          if (f.pai && xPos[f.pai] !== undefined) xs.push(xPos[f.pai]);
+          if (f.mae && xPos[f.mae] !== undefined) xs.push(xPos[f.mae]);
+          return { ...f, ancora: xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null };
+        });
+        familias.sort((a, b) => {
+          if (a.ancora === null && b.ancora === null) return 0;
+          if (a.ancora === null) return 1;
+          if (b.ancora === null) return -1;
+          return a.ancora - b.ancora;
+        });
+        familias.forEach(fam => {
+          fam.membros.forEach(p => { if (!usados.has(p.id)) unidades.push(formarUnidade(p)); });
         });
       }
 
