@@ -175,10 +175,9 @@ const Arvore = {
         } else unidades.push([p]);
       });
 
-      // Ordenar unidades pela posição X dos pais para manter coerência visual.
-      // Usa o centro dos pais do PRIMEIRO membro como chave principal.
-      // Desempate: solteiros antes de casais (evita o caso em que o cônjuge
-      // sem pais faz o casal empatar com um irmão solo, deixando-o do lado errado).
+      // Ordenar unidades pela posição X média dos pais (todos os membros com pais).
+      // Casais de famílias diferentes ficam no centro entre as duas famílias.
+      // Tiebreaker: solteiro (len=1) antes de casal (len=2) quando a chave empata.
       if (g > 0) {
         const parentXDe = p => {
           const xs = [];
@@ -187,17 +186,17 @@ const Arvore = {
           return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
         };
         const chaveUnidade = u => {
-          // Chave = centro dos pais do primeiro membro (quem tem pais mais à esquerda)
-          for (const p of u) { const x = parentXDe(p); if (x !== null) return x; }
-          return null;
+          const xs = [];
+          u.forEach(p => { const x = parentXDe(p); if (x !== null) xs.push(x); });
+          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
         };
         unidades.sort((ua, ub) => {
           const xa = chaveUnidade(ua), xb = chaveUnidade(ub);
           if (xa === null && xb === null) return ua.length - ub.length;
           if (xa === null) return 1;
           if (xb === null) return -1;
-          if (xa !== xb) return xa - xb;
-          return ua.length - ub.length; // desempate: solteiro (1) antes de casal (2)
+          if (Math.abs(xa - xb) > 0.001) return xa - xb;
+          return ua.length - ub.length;
         });
       }
 
