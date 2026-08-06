@@ -879,6 +879,7 @@ body {
   cursor: grab;
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 #canvas-arvore:active, #canvas-heredograma:active { cursor: grabbing; }
 

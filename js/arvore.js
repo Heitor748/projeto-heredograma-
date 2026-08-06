@@ -34,18 +34,23 @@ const Arvore = {
     this.canvas.style.height = cssH + 'px';
   },
 
+  _agendarDesenho() {
+    if (this._raf) return;
+    this._raf = requestAnimationFrame(() => { this._raf = null; this.desenhar(); });
+  },
+
   bindEventos() {
     this.canvas.addEventListener('wheel', e => {
       e.preventDefault();
       this.scale = Math.min(3, Math.max(0.2, this.scale * (e.deltaY > 0 ? 0.9 : 1.1)));
-      this.desenhar();
+      this._agendarDesenho();
     }, { passive: false });
 
     this.canvas.addEventListener('mousedown', e => { this.dragging = true; this.lastX = e.clientX; this.lastY = e.clientY; });
     this.canvas.addEventListener('mousemove', e => {
       if (!this.dragging) return;
       this.offsetX += e.clientX - this.lastX; this.offsetY += e.clientY - this.lastY;
-      this.lastX = e.clientX; this.lastY = e.clientY; this.desenhar();
+      this.lastX = e.clientX; this.lastY = e.clientY; this._agendarDesenho();
     });
     this.canvas.addEventListener('mouseup',    () => { this.dragging = false; });
     this.canvas.addEventListener('mouseleave', () => { this.dragging = false; });
@@ -55,9 +60,10 @@ const Arvore = {
     }, { passive: true });
     this.canvas.addEventListener('touchmove', e => {
       if (!this.dragging) return;
+      e.preventDefault();
       this.offsetX += e.touches[0].clientX - this.lastX; this.offsetY += e.touches[0].clientY - this.lastY;
-      this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY; this.desenhar();
-    }, { passive: true });
+      this.lastX = e.touches[0].clientX; this.lastY = e.touches[0].clientY; this._agendarDesenho();
+    }, { passive: false });
     this.canvas.addEventListener('touchend', () => { this.dragging = false; });
 
     this.canvas.addEventListener('click', e => {
