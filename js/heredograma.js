@@ -163,8 +163,12 @@ const Heredograma = {
         const conj = (p.conjuges || [])
           .map(cid => byId[cid])
           .find(c => c && geracao[c.id] === g && !usados.has(c.id));
-        if (conj) { usados.add(conj.id); unidades.push([p, conj]); }
-        else unidades.push([p]);
+        if (conj) {
+          usados.add(conj.id);
+          // Convenção: homem (quadrado) à esquerda, mulher (círculo) à direita
+          const par = (p.sexo === 'F' && conj.sexo !== 'F') ? [conj, p] : [p, conj];
+          unidades.push(par);
+        } else unidades.push([p]);
       });
 
       // Ordenar unidades pela posição X dos pais para manter coerência visual.

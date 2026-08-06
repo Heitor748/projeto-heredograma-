@@ -10,18 +10,39 @@ const Storage = {
     } catch { return []; }
   },
 
-  // Salva dados e empurra snapshot para o histórico de desfazer
+  // Salva dados e empurra snapshot para o histórico de desfazer.
+  // Histórico não armazena fotos para evitar exceder a cota do localStorage.
   save(pessoas, { silencioso = false } = {}) {
     if (!silencioso) {
       const atual = this.getAll();
       if (atual.length > 0) {
-        const hist = this.getHistorico();
-        hist.push({ ts: Date.now(), pessoas: atual });
-        if (hist.length > this.MAX_HISTORICO) hist.shift();
-        localStorage.setItem(this.HISTORICO_KEY, JSON.stringify(hist));
+        try {
+          const hist = this.getHistorico();
+          // Remove fotos do snapshot — fotos são grandes demais para 15 cópias
+          const snap = { ts: Date.now(), pessoas: atual.map(({ foto, ...r }) => r) };
+          hist.push(snap);
+          if (hist.length > this.MAX_HISTORICO) hist.shift();
+          localStorage.setItem(this.HISTORICO_KEY, JSON.stringify(hist));
+        } catch { /* histórico descartado se não couber */ }
       }
     }
-    localStorage.setItem(this.KEY, JSON.stringify(pessoas));
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(pessoas));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22) {
+        // Tenta salvar sem fotos
+        try {
+          localStorage.setItem(this.KEY, JSON.stringify(pessoas.map(({ foto, ...r }) => r)));
+          setTimeout(() => {
+            if (typeof UI !== 'undefined') UI.toast('Espaço do navegador cheio: fotos não foram salvas.', 'aviso');
+          }, 0);
+        } catch {
+          setTimeout(() => {
+            if (typeof UI !== 'undefined') UI.toast('Não foi possível salvar: armazenamento do navegador está cheio.', 'erro');
+          }, 0);
+        }
+      }
+    }
   },
 
   getById(id) {
