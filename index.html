@@ -574,6 +574,28 @@
 </html>`;
   }
   </script>
+  <!-- Polyfill: ctx.roundRect não existe no Chrome < 99 / Safari < 15.4 -->
+  <script>
+  (function() {
+    if (typeof CanvasRenderingContext2D === 'undefined') return;
+    if (CanvasRenderingContext2D.prototype.roundRect) return;
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      var rad = typeof r === 'number' ? r : (Array.isArray(r) ? r[0] || 0 : 0);
+      rad = Math.min(rad, w / 2, h / 2);
+      this.moveTo(x + rad, y);
+      this.lineTo(x + w - rad, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + rad);
+      this.lineTo(x + w, y + h - rad);
+      this.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+      this.lineTo(x + rad, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - rad);
+      this.lineTo(x, y + rad);
+      this.quadraticCurveTo(x, y, x + rad, y);
+      this.closePath();
+      return this;
+    };
+  })();
+  </script>
   <script src="js/storage.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/cadastro.js"></script>
@@ -581,12 +603,17 @@
   <script src="js/heredograma.js"></script>
   <script src="js/groq.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      UI.init();
-      Cadastro.init();
-      Heredograma.init();
-      Arvore.init();
-      Groq.init();
+    document.addEventListener('DOMContentLoaded', function() {
+      var modulos = [
+        ['UI',          function() { UI.init(); }],
+        ['Cadastro',    function() { Cadastro.init(); }],
+        ['Heredograma', function() { Heredograma.init(); }],
+        ['Arvore',      function() { Arvore.init(); }],
+        ['Groq',        function() { Groq.init(); }],
+      ];
+      modulos.forEach(function(m) {
+        try { m[1](); } catch(e) { console.error(m[0] + '.init() falhou:', e); }
+      });
     });
   </script>
 </body>
