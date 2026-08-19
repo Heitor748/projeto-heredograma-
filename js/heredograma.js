@@ -124,7 +124,9 @@ const Heredograma = {
     }
     pessoas.forEach(p => { if (geracao[p.id] === undefined) geracao[p.id] = 0; });
 
-    // Normalizar: cônjuges devem estar na mesma geração
+    // Normalizar cônjuges (mesma geração) e filhos (> pais) num único loop
+    // até estabilizar — evita que um cônjuge adicionado após o filho ser
+    // promovido fique preso na geração antiga.
     let normalizar = true;
     while (normalizar) {
       normalizar = false;
@@ -137,11 +139,6 @@ const Heredograma = {
           }
         });
       });
-    }
-    // Garantir que filhos sejam sempre geração > geração dos pais
-    normalizar = true;
-    while (normalizar) {
-      normalizar = false;
       pessoas.forEach(p => {
         const gPai = p.pai && geracao[p.pai] !== undefined ? geracao[p.pai] : -1;
         const gMae = p.mae && geracao[p.mae] !== undefined ? geracao[p.mae] : -1;
