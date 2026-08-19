@@ -160,73 +160,94 @@ const Arvore = {
 
     const maxG = Math.max(...Object.values(geracao));
 
-    // Passo 2: agrupar cônjuges e posicionar X
+    // Passo 2: layout ancorado — cada unidade posicionada perto da média X
+    // dos pais dos seus membros, empurrada para direita quando colidir com a
+    // unidade anterior. Isso mantém os filhos verticalmente sob os pais.
     const xPos = {};
     for (let g = 0; g <= maxG; g++) {
       const membros = pessoas.filter(p => geracao[p.id] === g);
       const usados = new Set();
-      const unidades = [];
 
-      // Forma a unidade (pessoa [+ cônjuge]) sem nunca misturar a família
-      // do cônjuge na conta — cada pessoa fica sempre ligada à SUA família real.
-      const formarUnidade = p => {
+      // Agrupa em unidades: solteiro [p] ou casal [homem, mulher].
+      // Mesmo com cônjuge tendo pais em outra família, o casal fica junto —
+      // a "âncora" do casal é a média dos pais de AMBOS os membros.
+      const unidades = [];
+      const ordemMembros = [...membros];
+      // Ordena por (pai_id + mae_id) para agrupar irmãos naturalmente na iteração,
+      // mantendo determinismo entre execuções.
+      ordemMembros.sort((a, b) => {
+        const ka = (a.pai || '') + '_' + (a.mae || '');
+        const kb = (b.pai || '') + '_' + (b.mae || '');
+        return ka.localeCompare(kb);
+      });
+
+      for (const p of ordemMembros) {
+        if (usados.has(p.id)) continue;
         usados.add(p.id);
         const conj = (p.conjuges || [])
           .map(cid => byId[cid])
           .find(c => c && geracao[c.id] === g && !usados.has(c.id));
         if (conj) {
           usados.add(conj.id);
-          // Convenção: homem (quadrado) à esquerda, mulher (círculo) à direita
-          return (p.sexo === 'F' && conj.sexo !== 'F') ? [conj, p] : [p, conj];
+          const par = (p.sexo === 'F' && conj.sexo !== 'F') ? [conj, p] : [p, conj];
+          unidades.push({ membros: par });
+        } else {
+          unidades.push({ membros: [p] });
         }
-        return [p];
-      };
-
-      if (g === 0) {
-        membros.forEach(p => { if (!usados.has(p.id)) unidades.push(formarUnidade(p)); });
-      } else {
-        // Agrupar por família real (pai_mae). A posição de cada pessoa é
-        // ancorada SEMPRE na sua própria família — nunca na média com a
-        // família do cônjuge, que jogava a pessoa para o lado errado quando
-        // o cônjuge também tinha pai/mãe cadastrados em outra família.
-        const familiaMap = new Map();
-        membros.forEach(p => {
-          const key = (p.pai || '') + '_' + (p.mae || '');
-          if (!familiaMap.has(key)) familiaMap.set(key, { pai: p.pai, mae: p.mae, membros: [] });
-          familiaMap.get(key).membros.push(p);
-        });
-        const familias = Array.from(familiaMap.values()).map(f => {
-          const xs = [];
-          if (f.pai && xPos[f.pai] !== undefined) xs.push(xPos[f.pai]);
-          if (f.mae && xPos[f.mae] !== undefined) xs.push(xPos[f.mae]);
-          return { ...f, ancora: xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null };
-        });
-        familias.sort((a, b) => {
-          if (a.ancora === null && b.ancora === null) return 0;
-          if (a.ancora === null) return 1;
-          if (b.ancora === null) return -1;
-          return a.ancora - b.ancora;
-        });
-        familias.forEach(fam => {
-          fam.membros.forEach(p => { if (!usados.has(p.id)) unidades.push(formarUnidade(p)); });
-        });
       }
 
-      let x = 0;
-      const local = {};
-      unidades.forEach((u, i) => {
-        if (i > 0) x += this.FAMILY_GAP;
-        if (u.length === 2) {
-          local[u[0].id] = x;
-          local[u[1].id] = x + this.COUPLE_SEP;
-          x += this.COUPLE_SEP;
-        } else {
-          local[u[0].id] = x;
-        }
+      // Calcula âncora ideal de cada unidade = média das X dos pais de todos
+      // os membros que têm pais cadastrados na geração anterior.
+      unidades.forEach(u => {
+        const xs = [];
+        u.membros.forEach(p => {
+          if (p.pai && xPos[p.pai] !== undefined) xs.push(xPos[p.pai]);
+          if (p.mae && xPos[p.mae] !== undefined) xs.push(xPos[p.mae]);
+        });
+        u.ancora = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+        // "Meia-largura" para spacing correto entre centros: solteiro = 0,
+        // casal = COUPLE_SEP/2 (extent do centro até um dos membros).
+        u.meia = u.membros.length === 2 ? this.COUPLE_SEP / 2 : 0;
       });
 
-      const shift = -x / 2;
-      Object.entries(local).forEach(([id, px]) => { xPos[id] = px + shift; });
+      // Ordena: unidades COM âncora por âncora crescente; sem âncora vão ao fim
+      // (irmãos/casais soltos ficam depois das famílias ancoradas).
+      unidades.sort((ua, ub) => {
+        if (ua.ancora === null && ub.ancora === null) return 0;
+        if (ua.ancora === null) return 1;
+        if (ub.ancora === null) return -1;
+        if (Math.abs(ua.ancora - ub.ancora) > 0.001) return ua.ancora - ub.ancora;
+        // Tiebreaker: solteiro antes de casal
+        return ua.membros.length - ub.membros.length;
+      });
+
+      // Sweep esquerda→direita: cada unidade fica na âncora, empurrada para
+      // frente se colidir com o mínimo permitido pela unidade anterior.
+      let cursor = -Infinity;
+      unidades.forEach(u => {
+        const minCentro = cursor + this.FAMILY_GAP + u.meia;
+        const ideal = u.ancora !== null ? u.ancora : (cursor === -Infinity ? 0 : minCentro);
+        u.centro = Math.max(ideal, minCentro);
+        cursor = u.centro + u.meia;
+      });
+
+      // Grava X de cada pessoa. Casal: p1 = centro - COUPLE_SEP/2, p2 = centro + COUPLE_SEP/2.
+      unidades.forEach(u => {
+        if (u.membros.length === 2) {
+          xPos[u.membros[0].id] = u.centro - this.COUPLE_SEP / 2;
+          xPos[u.membros[1].id] = u.centro + this.COUPLE_SEP / 2;
+        } else {
+          xPos[u.membros[0].id] = u.centro;
+        }
+      });
+    }
+
+    // Centralização global: desloca todas as gerações pelo mesmo offset
+    // para que o desenho fique centrado, sem quebrar o alinhamento vertical.
+    const todosX = Object.values(xPos);
+    if (todosX.length) {
+      const shift = -(Math.min(...todosX) + Math.max(...todosX)) / 2;
+      Object.keys(xPos).forEach(id => { xPos[id] += shift; });
     }
 
     this.nodes = pessoas.map(p => ({

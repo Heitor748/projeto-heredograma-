@@ -87,55 +87,43 @@ const Cadastro = {
     const pessoa = this.getPessoaDoForm();
     if (!pessoa.nome) { UI.toast('Nome é obrigatório', 'erro'); return; }
 
+    // Validação: pai/mãe não podem ser descendentes desta pessoa
+    if (this.pessoaEditando) {
+      const listaAtual = Storage.getAll();
+      const virariaCiclo = campo => campo && Storage._ehDescendente(campo, this.pessoaEditando.id, listaAtual);
+      if (virariaCiclo(pessoa.pai))  { UI.toast('O pai selecionado é descendente desta pessoa (ciclo).', 'erro'); return; }
+      if (virariaCiclo(pessoa.mae))  { UI.toast('A mãe selecionada é descendente desta pessoa (ciclo).', 'erro'); return; }
+    }
+
+    let idFinal;
     if (this.pessoaEditando) {
       Storage.update(pessoa);
+      idFinal = pessoa.id;
       UI.toast('Pessoa atualizada!', 'sucesso');
     } else {
       const salva = Storage.add(pessoa);
-      // Aplicar relação pendente (cônjuge, filho, irmão)
+      idFinal = salva.id;
+
+      // Aplicar relação pendente. Storage.save já sincroniza filhos[]/conjuges[]
+      // bidirecionalmente a partir de pai/mae/conjuges — aqui só ajustamos os
+      // campos canônicos que o form não configurou.
       if (this._relacaoPendente) {
         const { tipo, idReferencia } = this._relacaoPendente;
         const ref = Storage.getById(idReferencia);
         if (tipo === 'conjuge') {
           Storage.vincularConjuge(salva.id, idReferencia);
-        } else if (tipo === 'filho') {
-          // Já foi configurado no pai/mae do form, garantir bidirecional
-          const paiSelecionado = pessoa.pai;
-          const maeSelecionada = pessoa.mae;
-          if (paiSelecionado) {
-            const lista = Storage.getAll();
-            const paiObj = lista.find(p => p.id === paiSelecionado);
-            if (paiObj && !(paiObj.filhos || []).includes(salva.id)) {
-              paiObj.filhos = [...(paiObj.filhos || []), salva.id];
-              Storage.update(paiObj);
-            }
-          }
-          if (maeSelecionada) {
-            const lista = Storage.getAll();
-            const maeObj = lista.find(p => p.id === maeSelecionada);
-            if (maeObj && !(maeObj.filhos || []).includes(salva.id)) {
-              maeObj.filhos = [...(maeObj.filhos || []), salva.id];
-              Storage.update(maeObj);
-            }
-          }
         } else if (tipo === 'irmao' && ref) {
-          if (!salva.pai && ref.pai) { salva.pai = ref.pai; Storage.update(salva); }
-          if (!salva.mae && ref.mae) { salva.mae = ref.mae; Storage.update(salva); }
-          if (salva.pai) {
-            const pai = Storage.getById(salva.pai);
-            if (pai && !(pai.filhos || []).includes(salva.id))
-              Storage.update({ ...pai, filhos: [...(pai.filhos || []), salva.id] });
-          }
-          if (salva.mae) {
-            const mae = Storage.getById(salva.mae);
-            if (mae && !(mae.filhos || []).includes(salva.id))
-              Storage.update({ ...mae, filhos: [...(mae.filhos || []), salva.id] });
-          }
+          const atualizado = { ...Storage.getById(salva.id) };
+          if (!atualizado.pai && ref.pai) atualizado.pai = ref.pai;
+          if (!atualizado.mae && ref.mae) atualizado.mae = ref.mae;
+          Storage.update(atualizado);
         }
+        // tipo 'filho': pai-select/mae-select já estão preenchidos no form.
         this._relacaoPendente = null;
       }
       UI.toast('Pessoa cadastrada!', 'sucesso');
     }
+
     this.limpar();
     this.atualizarSelects();
     this.renderizarLista();
@@ -145,8 +133,9 @@ const Cadastro = {
 
   editar(id) {
     const pessoa = Storage.getById(id);
-    if (!pessoa) return;
-    this.pessoaEditando = pessoa;
+    if (!pessoa) { UI.toast('Pessoa não encontrada.', 'erro'); return; }
+    // Guardar cópia fresca para evitar sobrescrever com estado stale
+    this.pessoaEditando = { ...pessoa };
     this.atualizarSelects(id);
 
     const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
@@ -274,30 +263,54 @@ const Cadastro = {
 
   carregarFoto(file) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const preview = document.getElementById('foto-preview');
-      if (preview) { preview.src = e.target.result; preview.classList.remove('hidden'); }
-      document.getElementById('foto-placeholder')?.classList.add('hidden');
-    };
-    reader.readAsDataURL(file);
+    Utils.comprimirImagem(file, { maxLado: 480, qualidade: 0.82 })
+      .then(dataUrl => {
+        const preview = document.getElementById('foto-preview');
+        if (preview) { preview.src = dataUrl; preview.classList.remove('hidden'); }
+        document.getElementById('foto-placeholder')?.classList.add('hidden');
+      })
+      .catch(() => {
+        UI.toast('Não foi possível processar a foto. Tente outra imagem.', 'erro');
+      });
   },
 
   atualizarSelects(excluirId = null) {
-    const pessoas = Storage.getAll().filter(p => p.id !== excluirId);
-    const opcoes = pessoas.map(p =>
-      `<option value="${p.id}">${p.nome} ${p.sobrenome || ''}</option>`
+    const todas = Storage.getAll();
+    // Ao editar, excluir a própria pessoa E seus descendentes das opções de pai/mãe
+    // (evita ciclo: neto virar pai do avô).
+    const idBloqueado = excluirId || this.pessoaEditando?.id;
+    const bloqueados = new Set();
+    if (idBloqueado) {
+      bloqueados.add(idBloqueado);
+      // BFS pelos descendentes usando pai/mae + filhos[]
+      const filhosDe = new Map(todas.map(p => [p.id, new Set(p.filhos || [])]));
+      todas.forEach(x => {
+        if (x.pai && filhosDe.has(x.pai)) filhosDe.get(x.pai).add(x.id);
+        if (x.mae && filhosDe.has(x.mae)) filhosDe.get(x.mae).add(x.id);
+      });
+      const fila = [idBloqueado];
+      while (fila.length) {
+        const cur = fila.shift();
+        (filhosDe.get(cur) || new Set()).forEach(f => {
+          if (!bloqueados.has(f)) { bloqueados.add(f); fila.push(f); }
+        });
+      }
+    }
+    const disponiveis = todas.filter(p => !bloqueados.has(p.id));
+    const esc = Utils.escapeHtml;
+    const opcoes = disponiveis.map(p =>
+      `<option value="${esc(p.id)}">${esc(p.nome)} ${esc(p.sobrenome || '')}</option>`
     ).join('');
     const vazio = '<option value="">-- Nenhum --</option>';
     const semPessoas = '<option value="" disabled>Cadastre outras pessoas primeiro</option>';
 
     ['pai-select', 'mae-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = pessoas.length ? vazio + opcoes : vazio + semPessoas;
+      if (el) el.innerHTML = disponiveis.length ? vazio + opcoes : vazio + semPessoas;
     });
     ['filhos-select', 'conjuges-select'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = pessoas.length ? opcoes : semPessoas;
+      if (el) el.innerHTML = disponiveis.length ? opcoes : semPessoas;
     });
   },
 
@@ -315,16 +328,18 @@ const Cadastro = {
       lista.innerHTML = '<p class="lista-vazia">Nenhuma pessoa cadastrada.</p>';
       return;
     }
+    const esc = Utils.escapeHtml;
     lista.innerHTML = pessoas.map(p => {
       const corAvatar = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
       const anoNasc = p.dataNascimento ? new Date(p.dataNascimento).getFullYear() : null;
+      const inicial = ((p.nome || '?')[0] || '?').toUpperCase();
       return `
-      <div class="card-pessoa2" onclick="UI.verPerfil('${p.id}')">
+      <div class="card-pessoa2" onclick="UI.verPerfil('${esc(p.id)}')">
         <div class="cp2-avatar ${corAvatar}">
-          ${p.foto ? `<img src="${p.foto}" alt="${p.nome}">` : `<span>${(p.nome || '?')[0].toUpperCase()}</span>`}
+          ${p.foto ? `<img src="${esc(p.foto)}" alt="${esc(p.nome || '')}">` : `<span>${esc(inicial)}</span>`}
         </div>
         <div class="cp2-info">
-          <strong>${p.nome} ${p.sobrenome || ''}</strong>
+          <strong>${esc(p.nome)} ${esc(p.sobrenome || '')}</strong>
           <small>
             ${anoNasc ? anoNasc + ' – ' : ''}${p.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}
             ${p.afetado ? ' · <span style="color:var(--perigo)">Afetado</span>' : ''}
@@ -332,8 +347,8 @@ const Cadastro = {
           </small>
         </div>
         <div class="cp2-acoes" onclick="event.stopPropagation()">
-          <button onclick="Cadastro.editar('${p.id}')" title="Editar">✏️</button>
-          <button onclick="Cadastro.excluir('${p.id}')" title="Excluir">🗑️</button>
+          <button onclick="Cadastro.editar('${esc(p.id)}')" title="Editar">✏️</button>
+          <button onclick="Cadastro.excluir('${esc(p.id)}')" title="Excluir">🗑️</button>
         </div>
       </div>`;
     }).join('');

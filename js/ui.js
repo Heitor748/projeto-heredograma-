@@ -152,21 +152,25 @@ const UI = {
       const pessoas = Storage.getAll().filter(p =>
         p.nome?.toLowerCase().includes(q) || p.sobrenome?.toLowerCase().includes(q)
       );
+      const E = Utils.escapeHtml;
       resultado.innerHTML = pessoas.length
-        ? pessoas.map(p => `
-            <div class="resultado-item" onclick="UI.verPerfil('${p.id}')">
+        ? pessoas.map(p => {
+            const inic = ((p.nome || '?')[0] || '?').toUpperCase();
+            return `
+            <div class="resultado-item" onclick="UI.verPerfil('${E(p.id)}')">
               <div class="ri-avatar ${p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef'}">
-                ${p.foto ? `<img src="${p.foto}">` : (p.nome || '?')[0].toUpperCase()}
+                ${p.foto ? `<img src="${E(p.foto)}">` : E(inic)}
               </div>
               <div>
-                <span class="ri-nome">${p.nome} ${p.sobrenome || ''}</span>
+                <span class="ri-nome">${E(p.nome)} ${E(p.sobrenome || '')}</span>
                 <small>${p.sexo === 'M' ? '♂' : p.sexo === 'F' ? '♀' : '◇'}
                   ${p.dataNascimento ? ' · ' + new Date(p.dataNascimento).getFullYear() : ''}
                   ${p.vivo === false ? ' · Falecido' : ' · Vivo'}
                   ${p.afetado ? ' · <strong style="color:var(--perigo)">Afetado</strong>' : ''}
                 </small>
               </div>
-            </div>`).join('')
+            </div>`;
+          }).join('')
         : '<p class="lista-vazia">Nenhum resultado.</p>';
     });
   },
@@ -189,22 +193,24 @@ const UI = {
 
     const listaEl = document.getElementById('dash-recentes');
     if (listaEl) {
+      const E = Utils.escapeHtml;
       const recentes = [...pessoas].reverse().slice(0, 8);
       listaEl.innerHTML = recentes.length
         ? recentes.map(p => {
             const corAv = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
+            const inicial = ((p.nome || '?')[0] || '?').toUpperCase();
             const tags = [
               p.vivo === false ? '<span class="dash-tag falecido">Falecido</span>' : '<span class="dash-tag vivo">Vivo</span>',
               p.afetado  ? '<span class="dash-tag afetado">Afetado</span>'  : '',
               p.portador ? '<span class="dash-tag portador">Portador</span>' : '',
             ].filter(Boolean).join('');
             return `
-            <div class="dash-item" onclick="UI.verPerfil('${p.id}')">
+            <div class="dash-item" onclick="UI.verPerfil('${E(p.id)}')">
               <div class="dash-item-avatar ${corAv}">
-                ${p.foto ? `<img src="${p.foto}" alt="${p.nome}">` : `<span>${(p.nome || '?')[0].toUpperCase()}</span>`}
+                ${p.foto ? `<img src="${E(p.foto)}" alt="${E(p.nome || '')}">` : `<span>${E(inicial)}</span>`}
               </div>
               <div class="dash-item-info">
-                <strong>${p.nome} ${p.sobrenome || ''}</strong>
+                <strong>${E(p.nome)} ${E(p.sobrenome || '')}</strong>
                 <div class="dash-item-tags">${tags}</div>
               </div>
               <span class="dash-item-seta">›</span>
@@ -233,15 +239,18 @@ const UI = {
 
     const corAvatar = pessoa.sexo === 'M' ? 'masc' : pessoa.sexo === 'F' ? 'fem' : 'indef';
     const anoNasc = pessoa.dataNascimento ? new Date(pessoa.dataNascimento).getFullYear() : null;
+    const E = Utils.escapeHtml;
+    const inicial = ((pessoa.nome || '?')[0] || '?').toUpperCase();
+    const eid = E(id);
 
     conteudo.innerHTML = `
       <!-- Header -->
       <div class="p2-header">
         <div class="p2-avatar ${corAvatar}">
-          ${pessoa.foto ? `<img src="${pessoa.foto}" alt="">` : `<span>${(pessoa.nome || '?')[0].toUpperCase()}</span>`}
+          ${pessoa.foto ? `<img src="${E(pessoa.foto)}" alt="">` : `<span>${E(inicial)}</span>`}
         </div>
         <div class="p2-header-info">
-          <h2>${pessoa.nome} ${pessoa.sobrenome || ''}</h2>
+          <h2>${E(pessoa.nome)} ${E(pessoa.sobrenome || '')}</h2>
           <p class="p2-datas">${anoNasc || '?'} – ${pessoa.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</p>
           <div class="p2-tags">
             <span class="tag ${corAvatar === 'masc' ? 'tag-masc' : corAvatar === 'fem' ? 'tag-fem' : 'tag-indef'}">
@@ -252,8 +261,8 @@ const UI = {
           </div>
         </div>
         <div class="p2-header-acoes">
-          <button class="btn btn-outline btn-sm" onclick="Cadastro.editar('${id}'); UI.fecharModal()">✏️ Editar</button>
-          <button class="btn btn-perigo btn-sm" onclick="Cadastro.excluir('${id}'); UI.fecharModal()">🗑️</button>
+          <button class="btn btn-outline btn-sm" onclick="Cadastro.editar('${eid}'); UI.fecharModal()">✏️ Editar</button>
+          <button class="btn btn-perigo btn-sm" onclick="Cadastro.excluir('${eid}'); UI.fecharModal()">🗑️</button>
         </div>
       </div>
 
@@ -289,7 +298,7 @@ const UI = {
           ${pessoa.observacoes ? `
           <div class="p2-detalhe-item p2-detalhe-full">
             <span class="p2-label">Observações</span>
-            <span>${pessoa.observacoes}</span>
+            <span>${E(pessoa.observacoes)}</span>
           </div>` : ''}
         </div>
       </div>
@@ -301,57 +310,59 @@ const UI = {
             (f.pai === id && f.mae === c.id) || (f.mae === id && f.pai === c.id)
           );
           const corC = c.sexo === 'M' ? 'masc' : c.sexo === 'F' ? 'fem' : 'indef';
+          const inicC = ((c.nome || '?')[0] || '?').toUpperCase();
           return `
           <div class="p2-rel-card">
-            <div class="p2-rel-pessoa" onclick="UI.verPerfil('${c.id}')">
+            <div class="p2-rel-pessoa" onclick="UI.verPerfil('${E(c.id)}')">
               <div class="p2-rel-avatar ${corC}">
-                ${c.foto ? `<img src="${c.foto}">` : (c.nome || '?')[0].toUpperCase()}
+                ${c.foto ? `<img src="${E(c.foto)}">` : E(inicC)}
               </div>
               <div class="p2-rel-info">
-                <strong>${c.nome} ${c.sobrenome || ''}</strong>
+                <strong>${E(c.nome)} ${E(c.sobrenome || '')}</strong>
                 <small>${c.dataNascimento ? new Date(c.dataNascimento).getFullYear() : '?'} – ${c.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
               </div>
             </div>
             ${filhosDoConjuge.length ? `
             <div class="p2-filhos-lista">
               <span class="p2-sub-label">Filhos</span>
-              ${filhosDoConjuge.map(f => `
-                <div class="p2-mini-card" onclick="UI.verPerfil('${f.id}')">
+              ${filhosDoConjuge.map(f => {
+                const inicF = ((f.nome || '?')[0] || '?').toUpperCase();
+                return `
+                <div class="p2-mini-card" onclick="UI.verPerfil('${E(f.id)}')">
                   <div class="p2-mini-avatar ${f.sexo === 'M' ? 'masc' : f.sexo === 'F' ? 'fem' : 'indef'}">
-                    ${f.foto ? `<img src="${f.foto}">` : (f.nome || '?')[0].toUpperCase()}
+                    ${f.foto ? `<img src="${E(f.foto)}">` : E(inicF)}
                   </div>
-                  <span>${f.nome} ${f.sobrenome || ''}</span>
-                </div>`).join('')}
+                  <span>${E(f.nome)} ${E(f.sobrenome || '')}</span>
+                </div>`;
+              }).join('')}
             </div>` : ''}
           </div>`;
         }).join('')}
 
-        ${filhos.filter(f => {
-          const temConjuge = conjuges.some(c =>
-            (f.pai === id && f.mae === c.id) || (f.mae === id && f.pai === c.id)
-          );
-          return !temConjuge;
-        }).length ? `
-        <div class="p2-rel-card">
-          <span class="p2-sub-label">Outros filhos</span>
-          ${filhos.filter(f => {
-            const temConjuge = conjuges.some(c =>
-              (f.pai === id && f.mae === c.id) || (f.mae === id && f.pai === c.id)
-            );
-            return !temConjuge;
-          }).map(f => `
-            <div class="p2-mini-card" onclick="UI.verPerfil('${f.id}')">
-              <div class="p2-mini-avatar ${f.sexo === 'M' ? 'masc' : f.sexo === 'F' ? 'fem' : 'indef'}">
-                ${f.foto ? `<img src="${f.foto}">` : (f.nome || '?')[0].toUpperCase()}
-              </div>
-              <span>${f.nome} ${f.sobrenome || ''}</span>
-            </div>`).join('')}
-        </div>` : ''}
+        ${(() => {
+          const outros = filhos.filter(f => !conjuges.some(c =>
+            (f.pai === id && f.mae === c.id) || (f.mae === id && f.pai === c.id)));
+          if (!outros.length) return '';
+          return `
+          <div class="p2-rel-card">
+            <span class="p2-sub-label">Outros filhos</span>
+            ${outros.map(f => {
+              const inicF = ((f.nome || '?')[0] || '?').toUpperCase();
+              return `
+              <div class="p2-mini-card" onclick="UI.verPerfil('${E(f.id)}')">
+                <div class="p2-mini-avatar ${f.sexo === 'M' ? 'masc' : f.sexo === 'F' ? 'fem' : 'indef'}">
+                  ${f.foto ? `<img src="${E(f.foto)}">` : E(inicF)}
+                </div>
+                <span>${E(f.nome)} ${E(f.sobrenome || '')}</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        })()}
 
-        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('conjuge','${id}')">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('conjuge','${eid}')">
           + Acrescentar cônjuge
         </button>
-        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('filho','${id}')">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('filho','${eid}')">
           + Acrescentar filho(a)
         </button>
       </div>
@@ -361,45 +372,54 @@ const UI = {
         <div class="p2-pais-bloco">
           ${pai || mae ? `
           <div class="p2-pais-bracket">
-            ${pai ? `
-            <div class="p2-rel-pessoa" onclick="UI.verPerfil('${pai.id}')">
-              <div class="p2-rel-avatar masc">
-                ${pai.foto ? `<img src="${pai.foto}">` : (pai.nome || '?')[0].toUpperCase()}
-              </div>
-              <div class="p2-rel-info">
-                <strong>${pai.nome} ${pai.sobrenome || ''}</strong>
-                <small>${pai.dataNascimento ? new Date(pai.dataNascimento).getFullYear() : '?'} – ${pai.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
-              </div>
-            </div>` : '<div class="p2-pai-vazio">Pai desconhecido</div>'}
-            ${mae ? `
-            <div class="p2-rel-pessoa" onclick="UI.verPerfil('${mae.id}')">
-              <div class="p2-rel-avatar fem">
-                ${mae.foto ? `<img src="${mae.foto}">` : (mae.nome || '?')[0].toUpperCase()}
-              </div>
-              <div class="p2-rel-info">
-                <strong>${mae.nome} ${mae.sobrenome || ''}</strong>
-                <small>${mae.dataNascimento ? new Date(mae.dataNascimento).getFullYear() : '?'} – ${mae.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
-              </div>
-            </div>` : '<div class="p2-pai-vazio">Mãe desconhecida</div>'}
+            ${pai ? (() => {
+              const iP = ((pai.nome || '?')[0] || '?').toUpperCase();
+              return `
+              <div class="p2-rel-pessoa" onclick="UI.verPerfil('${E(pai.id)}')">
+                <div class="p2-rel-avatar masc">
+                  ${pai.foto ? `<img src="${E(pai.foto)}">` : E(iP)}
+                </div>
+                <div class="p2-rel-info">
+                  <strong>${E(pai.nome)} ${E(pai.sobrenome || '')}</strong>
+                  <small>${pai.dataNascimento ? new Date(pai.dataNascimento).getFullYear() : '?'} – ${pai.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
+                </div>
+              </div>`;
+            })() : '<div class="p2-pai-vazio">Pai desconhecido</div>'}
+            ${mae ? (() => {
+              const iM = ((mae.nome || '?')[0] || '?').toUpperCase();
+              return `
+              <div class="p2-rel-pessoa" onclick="UI.verPerfil('${E(mae.id)}')">
+                <div class="p2-rel-avatar fem">
+                  ${mae.foto ? `<img src="${E(mae.foto)}">` : E(iM)}
+                </div>
+                <div class="p2-rel-info">
+                  <strong>${E(mae.nome)} ${E(mae.sobrenome || '')}</strong>
+                  <small>${mae.dataNascimento ? new Date(mae.dataNascimento).getFullYear() : '?'} – ${mae.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
+                </div>
+              </div>`;
+            })() : '<div class="p2-pai-vazio">Mãe desconhecida</div>'}
           </div>` : '<p class="lista-vazia">Pais não cadastrados</p>'}
         </div>
 
         ${irmaos.length ? `
         <div class="p2-irmaos">
           <span class="p2-sub-label">Irmãos (${irmaos.length})</span>
-          ${irmaos.map(ir => `
-            <div class="p2-mini-card" onclick="UI.verPerfil('${ir.id}')">
+          ${irmaos.map(ir => {
+            const iI = ((ir.nome || '?')[0] || '?').toUpperCase();
+            return `
+            <div class="p2-mini-card" onclick="UI.verPerfil('${E(ir.id)}')">
               <div class="p2-mini-avatar ${ir.sexo === 'M' ? 'masc' : ir.sexo === 'F' ? 'fem' : 'indef'}">
-                ${ir.foto ? `<img src="${ir.foto}">` : (ir.nome || '?')[0].toUpperCase()}
+                ${ir.foto ? `<img src="${E(ir.foto)}">` : E(iI)}
               </div>
-              <span>${ir.nome} ${ir.sobrenome || ''}</span>
-            </div>`).join('')}
+              <span>${E(ir.nome)} ${E(ir.sobrenome || '')}</span>
+            </div>`;
+          }).join('')}
         </div>` : ''}
 
-        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('irmao','${id}')">
+        <button class="p2-btn-add" onclick="UI.mostrarSeletorRelacao('irmao','${eid}')">
           + Acrescentar irmão(ã)
         </button>
-        <button class="p2-btn-add" onclick="Cadastro.editar('${id}'); UI.fecharModal()">
+        <button class="p2-btn-add" onclick="Cadastro.editar('${eid}'); UI.fecharModal()">
           + Acrescentar pai ou mãe
         </button>
       </div>
@@ -430,34 +450,39 @@ const UI = {
     const titulos = { conjuge: 'Acrescentar cônjuge', filho: 'Acrescentar filho(a)', irmao: 'Acrescentar irmão(ã)' };
     document.getElementById('modal-seletor')?.remove();
 
+    const E = Utils.escapeHtml;
+    const etipo = E(tipo), eidRef = E(idReferencia);
     const overlay = document.createElement('div');
     overlay.id = 'modal-seletor';
     overlay.className = 'modal-seletor-overlay';
     overlay.innerHTML = `
       <div class="modal-seletor-box">
         <div class="ms-header">
-          <span class="ms-titulo">${titulos[tipo] || 'Acrescentar'}</span>
+          <span class="ms-titulo">${E(titulos[tipo] || 'Acrescentar')}</span>
           <button class="ms-fechar" onclick="document.getElementById('modal-seletor').remove()">✕</button>
         </div>
         <div class="ms-opcoes">
-          <button class="ms-opcao" onclick="UI._seletorNovo('${tipo}','${idReferencia}')">
+          <button class="ms-opcao" onclick="UI._seletorNovo('${etipo}','${eidRef}')">
             <span class="ms-icone">✏️</span>
             <div><strong>Novo cadastro</strong><small>Criar uma nova pessoa</small></div>
           </button>
-          <button class="ms-opcao" onclick="UI._seletorVerLista('${tipo}','${idReferencia}')">
+          <button class="ms-opcao" onclick="UI._seletorVerLista('${etipo}','${eidRef}')">
             <span class="ms-icone">👥</span>
             <div><strong>Selecionar existente</strong><small>Vincular alguém já cadastrado</small></div>
           </button>
         </div>
         <div id="ms-lista-wrap" class="ms-lista-wrap hidden">
-          <input type="text" id="ms-pesquisa" class="ms-pesquisa" placeholder="Buscar pessoa..."
-            oninput="UI._seletorFiltrar('${tipo}','${idReferencia}',this.value)">
+          <input type="text" id="ms-pesquisa" class="ms-pesquisa" placeholder="Buscar pessoa...">
           <div id="ms-lista" class="ms-lista"></div>
         </div>
       </div>`;
 
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    // Bind da busca via listener em vez de inline (evita injeção via id)
+    overlay.querySelector('#ms-pesquisa')?.addEventListener('input', ev => {
+      this._seletorFiltrar(tipo, idReferencia, ev.target.value);
+    });
     setTimeout(() => overlay.classList.add('visivel'), 10);
   },
 
@@ -492,19 +517,22 @@ const UI = {
 
     const lista = document.getElementById('ms-lista');
     if (!lista) return;
+    const E = Utils.escapeHtml;
+    const etipo = E(tipo), eidRef = E(idReferencia);
     lista.innerHTML = pessoas.length
       ? pessoas.map(p => {
           const cor = p.sexo === 'M' ? 'masc' : p.sexo === 'F' ? 'fem' : 'indef';
+          const inic = ((p.nome || '?')[0] || '?').toUpperCase();
           return `
           <div class="ms-pessoa-item">
             <div class="ms-pessoa-avatar ${cor}">
-              ${p.foto ? `<img src="${p.foto}">` : (p.nome || '?')[0].toUpperCase()}
+              ${p.foto ? `<img src="${E(p.foto)}">` : E(inic)}
             </div>
             <div class="ms-pessoa-info">
-              <strong>${p.nome} ${p.sobrenome || ''}</strong>
+              <strong>${E(p.nome)} ${E(p.sobrenome || '')}</strong>
               <small>${p.dataNascimento ? new Date(p.dataNascimento).getFullYear() : '?'} · ${p.vivo !== false ? 'Vivo(a)' : 'Falecido(a)'}</small>
             </div>
-            <button class="btn btn-primario btn-sm" onclick="UI._seletorVincular('${tipo}','${idReferencia}','${p.id}')">Vincular</button>
+            <button class="btn btn-primario btn-sm" onclick="UI._seletorVincular('${etipo}','${eidRef}','${E(p.id)}')">Vincular</button>
           </div>`;
         }).join('')
       : '<p class="lista-vazia">Nenhuma pessoa disponível.</p>';
@@ -512,32 +540,43 @@ const UI = {
 
   _seletorVincular(tipo, idReferencia, idSelecionado) {
     const ref = Storage.getById(idReferencia);
+    if (!ref) { this.toast('Referência inválida.', 'erro'); return; }
+
     if (tipo === 'conjuge') {
+      if (idReferencia === idSelecionado) { this.toast('Não pode ser cônjuge de si mesmo.', 'erro'); return; }
       Storage.vincularConjuge(idReferencia, idSelecionado);
       this.toast('Cônjuge vinculado!', 'sucesso');
     } else if (tipo === 'filho') {
-      Storage.vincularFilho(idReferencia, idSelecionado, ref?.sexo);
+      // Sem sexo definido no responsável, pedir para escolher slot
+      let slot = null;
+      if (!ref.sexo) {
+        const escolha = prompt('O responsável não tem sexo definido. Digite "pai" ou "mae" para vincular:', 'pai');
+        if (escolha !== 'pai' && escolha !== 'mae') {
+          this.toast('Vínculo cancelado.', 'info'); return;
+        }
+        slot = escolha;
+      }
+      const r = Storage.vincularFilho(idReferencia, idSelecionado, ref.sexo, slot);
+      if (!r.ok) {
+        const msg = r.erro === 'ciclo' ? 'Isso criaria um ciclo genealógico.'
+                  : r.erro === 'sexo-obrigatorio' ? 'Defina o sexo do responsável primeiro.'
+                  : 'Não foi possível vincular.';
+        this.toast(msg, 'erro'); return;
+      }
       this.toast('Filho(a) vinculado!', 'sucesso');
     } else if (tipo === 'irmao') {
       const selecionado = Storage.getById(idSelecionado);
-      if (selecionado && ref) {
+      if (selecionado) {
+        // Sem sobrescrever pai/mae já definidos do irmão
         const atualizado = { ...selecionado };
         if (!atualizado.pai && ref.pai) atualizado.pai = ref.pai;
         if (!atualizado.mae && ref.mae) atualizado.mae = ref.mae;
-        Storage.update(atualizado);
-        // Atualizar filhos nos pais
-        if (atualizado.pai) {
-          const pai = Storage.getById(atualizado.pai);
-          if (pai && !(pai.filhos || []).includes(idSelecionado)) {
-            Storage.update({ ...pai, filhos: [...(pai.filhos || []), idSelecionado] });
-          }
-        }
-        if (atualizado.mae) {
-          const mae = Storage.getById(atualizado.mae);
-          if (mae && !(mae.filhos || []).includes(idSelecionado)) {
-            Storage.update({ ...mae, filhos: [...(mae.filhos || []), idSelecionado] });
-          }
-        }
+        // Validar ciclo antes de gravar
+        const lista = Storage.getAll();
+        const ciclo = (atualizado.pai && Storage._ehDescendente(atualizado.pai, idSelecionado, lista))
+                   || (atualizado.mae && Storage._ehDescendente(atualizado.mae, idSelecionado, lista));
+        if (ciclo) { this.toast('Isso criaria um ciclo genealógico.', 'erro'); return; }
+        Storage.update(atualizado); // sincronizarRelacoes cuida do resto
         this.toast('Irmão(ã) vinculado!', 'sucesso');
       }
     }
