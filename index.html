@@ -80,14 +80,14 @@
       </div>
 
       <div class="dash-acoes-rapidas">
-        <button class="btn btn-primario" onclick="UI.navegarPara('cadastro')">+ Nova Pessoa</button>
+        <button class="btn btn-primario" onclick="Cadastro.limpar(); UI.navegarPara('cadastro')">+ Nova Pessoa</button>
         <button class="btn btn-secundario" onclick="UI.navegarPara('heredograma')">Ver Heredograma</button>
         <button class="btn btn-secundario" onclick="UI.navegarPara('arvore')">Ver Árvore</button>
         <button class="btn btn-outline" id="btn-carregar-exemplo">Carregar Exemplo</button>
       </div>
 
       <div class="dash-cards">
-        <div class="dash-card dash-card-clicavel" onclick="UI.navegarPara('cadastro')" title="Ver todas as pessoas">
+        <div class="dash-card dash-card-clicavel" onclick="UI.verListaPessoas()" title="Ver todas as pessoas">
           <div class="dash-card-icone">👥</div>
           <div class="dash-card-info">
             <span id="dash-total" class="dash-num">0</span>
@@ -135,7 +135,7 @@
         <div class="dash-bloco">
           <div class="dash-bloco-header">
             <h3>Últimas pessoas cadastradas</h3>
-            <button class="dash-ver-todos" onclick="UI.navegarPara('cadastro')">Ver todos ›</button>
+            <button class="dash-ver-todos" onclick="UI.verListaPessoas()">Ver todos ›</button>
           </div>
           <div id="dash-recentes">
             <p class="lista-vazia">Nenhuma pessoa cadastrada.</p>

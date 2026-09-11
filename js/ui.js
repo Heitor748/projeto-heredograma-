@@ -83,6 +83,17 @@ const UI = {
     if (secao === 'cadastro') { Cadastro.atualizarSelects(); Cadastro.renderizarLista(); }
   },
 
+  // A seção "Cadastro" sempre mostra o formulário "Nova Pessoa" primeiro,
+  // com a lista abaixo/ao lado. Quando o usuário clica em "Ver todos" ou no
+  // card "Total de Pessoas", a intenção é ver a LISTA, não abrir um cadastro
+  // novo — então navega e já rola até a lista.
+  verListaPessoas() {
+    this.navegarPara('cadastro');
+    setTimeout(() => {
+      document.querySelector('.lista-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  },
+
   bindTema() {
     document.getElementById('btn-tema')?.addEventListener('click', () => {
       const atual = document.documentElement.getAttribute('data-tema');
